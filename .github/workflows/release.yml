@@ -1,4 +1,4 @@
-name: Build macOS Release
+name: Build macOS DMG
 
 on:
   push:
@@ -20,12 +20,10 @@ concurrency:
 
 jobs:
   release:
-    name: Sign, notarize, and publish
+    name: Build and publish DMG
     runs-on: macos-26
-    environment: release
-    timeout-minutes: 180
+    timeout-minutes: 90
     env:
-      APPLE_TEAM_ID: AMHB5QVH4B
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
@@ -36,99 +34,34 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
+      - name: Validate release tag
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]; then
+              echo "Release tag must be a safe v-prefixed version" >&2
+              exit 1
+          fi
+          git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
+          xcodebuild -version
+
       - name: Configure runner paths
         run: |
+          version="${RELEASE_TAG#v}"
           {
               echo "DERIVED_DATA_PATH=$RUNNER_TEMP/IceDerivedData"
               echo "SOURCE_PACKAGES_PATH=$RUNNER_TEMP/IceSourcePackages"
               echo "APP_PATH=$RUNNER_TEMP/IceDerivedData/Build/Products/Release/Ice.app"
               echo "DIST_DIR=$RUNNER_TEMP/IceDistribution"
+              echo "DMG_PATH=$RUNNER_TEMP/IceDistribution/Ice-$version-arm64.dmg"
           } >> "$GITHUB_ENV"
-
-      - name: Validate tag and release secrets
-        env:
-          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
-          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          NOTARY_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
-        run: |
-          set -euo pipefail
-
-          if [[ ! "$RELEASE_TAG" =~ ^v[0-9] ]]; then
-              echo "Release tag must start with v followed by a version number" >&2
-              exit 1
-          fi
-
-          missing=()
-          [[ -n "$CERTIFICATE_BASE64" ]] || missing+=(DEVELOPER_ID_APPLICATION_P12_BASE64)
-          [[ -n "$CERTIFICATE_PASSWORD" ]] || missing+=(DEVELOPER_ID_APPLICATION_P12_PASSWORD)
-          [[ -n "$NOTARY_KEY_ID" ]] || missing+=(APP_STORE_CONNECT_KEY_ID)
-          [[ -n "$NOTARY_ISSUER_ID" ]] || missing+=(APP_STORE_CONNECT_ISSUER_ID)
-          [[ -n "$NOTARY_KEY_BASE64" ]] || missing+=(APP_STORE_CONNECT_PRIVATE_KEY_BASE64)
-
-          if (( ${#missing[@]} > 0 )); then
-              printf 'Missing release secret: %s\n' "${missing[@]}" >&2
-              exit 1
-          fi
-
-          xcodebuild -version
-
-      - name: Import Developer ID certificate
-        env:
-          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_BASE64 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
-          NOTARY_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
-        run: |
-          set -euo pipefail
-
-          certificate_path="$RUNNER_TEMP/DeveloperIDApplication.p12"
-          keychain_path="$RUNNER_TEMP/IceRelease.keychain-db"
-          notary_key_path="$RUNNER_TEMP/AuthKey.p8"
-          keychain_password="$(uuidgen)"
-          echo "::add-mask::$keychain_password"
-
-          printf '%s' "$CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
-          printf '%s' "$NOTARY_KEY_BASE64" | base64 -D > "$notary_key_path"
-          chmod 600 "$certificate_path" "$notary_key_path"
-
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" \
-              -k "$keychain_path" \
-              -P "$CERTIFICATE_PASSWORD" \
-              -A \
-              -t cert \
-              -f pkcs12
-          security set-key-partition-list \
-              -S apple-tool:,apple: \
-              -s \
-              -k "$keychain_password" \
-              "$keychain_path"
-          security list-keychains -d user -s "$keychain_path"
-          security default-keychain -d user -s "$keychain_path"
-
-          signing_identity="$(
-              security find-identity -v -p codesigning "$keychain_path" |
-                  awk '/"Developer ID Application:/ { print $2; exit }'
-          )"
-          if [[ -z "$signing_identity" ]]; then
-              echo "The imported archive has no valid Developer ID Application identity" >&2
-              exit 1
-          fi
-
-          echo "ICE_CODE_SIGN_IDENTITY=$signing_identity" >> "$GITHUB_ENV"
-          echo "RELEASE_KEYCHAIN_PATH=$keychain_path" >> "$GITHUB_ENV"
-          echo "RELEASE_CERTIFICATE_PATH=$certificate_path" >> "$GITHUB_ENV"
-          echo "NOTARY_KEY_PATH=$notary_key_path" >> "$GITHUB_ENV"
 
       - name: Build and test Release app
         run: |
           set -euo pipefail
 
-          ICE_DISTRIBUTION_BUILD=1 \
-          ICE_DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+          ICE_SIGNING_MODE=adhoc \
+          ICE_BUILD_ARCHS=arm64 \
           CONFIGURATION=Release \
           DERIVED_DATA_PATH="$DERIVED_DATA_PATH" \
           SOURCE_PACKAGES_PATH="$SOURCE_PACKAGES_PATH" \
@@ -146,55 +79,22 @@ jobs:
 
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-      - name: Notarize and package
-        env:
-          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: Package DMG
         run: |
           set -euo pipefail
 
-          notarization_zip="$RUNNER_TEMP/Ice-notarization.zip"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$notarization_zip"
-
-          xcrun notarytool submit "$notarization_zip" \
-              --key "$NOTARY_KEY_PATH" \
-              --key-id "$NOTARY_KEY_ID" \
-              --issuer "$NOTARY_ISSUER_ID" \
-              --wait \
-              --timeout 150m
-
-          xcrun stapler staple "$APP_PATH"
-          xcrun stapler validate "$APP_PATH"
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          spctl --assess --type execute --verbose=4 "$APP_PATH"
-
-          release_directory="$DIST_DIR/Ice"
-          mkdir -p "$release_directory"
-          ditto "$APP_PATH" "$release_directory/Ice.app"
-          codesign --verify --deep --strict --verbose=2 "$release_directory/Ice.app"
-          xcrun stapler validate "$release_directory/Ice.app"
-          cp "$GITHUB_WORKSPACE/LICENSE" "$release_directory/LICENSE"
-          printf 'Corresponding source: https://github.com/%s/tree/%s\n' \
-              "$GITHUB_REPOSITORY" \
-              "$RELEASE_TAG" \
-              > "$release_directory/SOURCE.txt"
-          ditto -c -k \
-              --sequesterRsrc \
-              --keepParent \
-              "$release_directory" \
-              "$DIST_DIR/Ice.zip"
-          (
-              cd "$DIST_DIR"
-              shasum -a 256 Ice.zip > Ice.zip.sha256
-          )
+          APP_PATH="$APP_PATH" \
+          OUTPUT_PATH="$DMG_PATH" \
+          RELEASE_TAG="$RELEASE_TAG" \
+          ./Scripts/package-release-dmg.sh
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
           name: Ice-${{ env.RELEASE_TAG }}
           path: |
-            ${{ runner.temp }}/IceDistribution/Ice.zip
-            ${{ runner.temp }}/IceDistribution/Ice.zip.sha256
+            ${{ runner.temp }}/IceDistribution/*.dmg
+            ${{ runner.temp }}/IceDistribution/*.dmg.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -202,19 +102,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$RELEASE_TAG" \
-              "$DIST_DIR/Ice.zip#Ice for Apple silicon" \
-              "$DIST_DIR/Ice.zip.sha256#SHA-256 checksum" \
-              --verify-tag \
-              --generate-notes \
-              --title "Ice $RELEASE_TAG"
+          set -euo pipefail
 
-      - name: Remove signing material
-        if: always()
-        run: |
-          if [[ -n "${RELEASE_KEYCHAIN_PATH:-}" ]]; then
-              security delete-keychain "$RELEASE_KEYCHAIN_PATH" || true
+          notes_path="$RUNNER_TEMP/release-notes.md"
+          printf '%s\n\n%s\n' \
+              'Apple silicon DMG. Drag Ice.app to Applications.' \
+              'This automated build is ad-hoc signed and is not notarized by Apple. macOS may require explicit approval in System Settings > Privacy & Security after installing or updating.' \
+              > "$notes_path"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+              gh release upload "$RELEASE_TAG" \
+                  "$DMG_PATH#Ice for Apple silicon (ad-hoc signed)" \
+                  "$DMG_PATH.sha256#SHA-256 checksum" \
+                  --clobber
+              gh release edit "$RELEASE_TAG" \
+                  --notes-file "$notes_path" \
+                  --title "Ice $RELEASE_TAG"
+          else
+              gh release create "$RELEASE_TAG" \
+                  "$DMG_PATH#Ice for Apple silicon (ad-hoc signed)" \
+                  "$DMG_PATH.sha256#SHA-256 checksum" \
+                  --verify-tag \
+                  --notes-file "$notes_path" \
+                  --title "Ice $RELEASE_TAG"
           fi
-          rm -f \
-              "${RELEASE_CERTIFICATE_PATH:-}" \
-              "${NOTARY_KEY_PATH:-}"

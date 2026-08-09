@@ -26,9 +26,14 @@ Ice is a powerful menu bar management tool. While its primary function is hiding
 
 ### Manual Installation
 
-Download `Ice.zip` from the
-[latest release](https://github.com/Sh7ne/Ice/releases/latest), open the archive,
-and move `Ice.app` into your `Applications` folder.
+Download the DMG from the
+[latest release](https://github.com/Sh7ne/Ice/releases/latest), open it, and drag
+`Ice.app` into the `Applications` folder.
+
+Automated DMG builds are ad-hoc signed and are not notarized by Apple. macOS may
+require explicit approval in System Settings > Privacy & Security after
+installing or updating. Privacy permissions may also need to be granted again
+after an update.
 
 ### Local Developer-signed build
 
@@ -53,9 +58,9 @@ without requesting Accessibility or Screen Recording permissions:
 ./Scripts/smoke-test-xpc.sh
 ```
 
-Version tags can build and publish notarized Apple silicon releases through
-GitHub Actions. See [Releasing Ice](docs/RELEASING.md) for the required Apple
-credentials and tag format.
+Version tags automatically build and publish Apple silicon DMGs through GitHub
+Actions without Apple credentials. See [Releasing Ice](docs/RELEASING.md) for
+the tag format and signing details.
 
 ## Features/Roadmap
 
