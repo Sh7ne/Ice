@@ -20,7 +20,7 @@ struct AboutSettingsPane: View {
 
     private var licenseURL: URL {
         // swiftlint:disable:next force_unwrapping
-        URL(string: "https://github.com/Sh7ne/Ice/blob/main/LICENSE")!
+        URL(string: "https://github.com/Sh7ne/Ice/blob/HEAD/LICENSE")!
     }
 
     var body: some View {

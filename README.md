@@ -11,6 +11,13 @@ Ice is a powerful menu bar management tool. While its primary function is hiding
 ![Platform](https://img.shields.io/badge/platform-macOS-blue?style=flat-square)
 ![Requirements](https://img.shields.io/badge/requirements-macOS%2014%2B-fa4e49?style=flat-square)
 [![License](https://img.shields.io/github/license/Sh7ne/Ice?style=flat-square)](LICENSE)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy_me_a_coffee-sh7ne-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/sh7ne)
+
+> [!IMPORTANT]
+> This repository is a modified fork of
+> [jordanbaird/Ice](https://github.com/jordanbaird/Ice), maintained by
+> [Sh7ne](https://github.com/Sh7ne). Fork-specific changes began in August 2026
+> and remain licensed under GPL-3.0.
 
 > [!NOTE]
 > Ice is currently in active development. Some features have not yet been implemented. Download the latest release [here](https://github.com/Sh7ne/Ice/releases/latest) and see the roadmap below for upcoming features.
@@ -19,7 +26,9 @@ Ice is a powerful menu bar management tool. While its primary function is hiding
 
 ### Manual Installation
 
-Download the "Ice.zip" file from the [latest release](https://github.com/Sh7ne/Ice/releases/latest) and move the unzipped app into your `Applications` folder.
+Download `Ice.zip` from the
+[latest release](https://github.com/Sh7ne/Ice/releases/latest), open the archive,
+and move `Ice.app` into your `Applications` folder.
 
 ### Local Developer-signed build
 
@@ -91,7 +100,7 @@ credentials and tag format.
 ### Other
 
 - [x] Launch at login
-- [x] Automatic updates
+- [ ] Automatic updates
 - [ ] Menu bar widgets
 
 ## Why does Ice only support macOS 14 and later?
@@ -122,4 +131,6 @@ Ice uses a number of system APIs that are available starting in macOS 14. As suc
 
 ## License
 
-Ice is available under the [GPL-3.0 license](LICENSE).
+Ice and this modified fork are available under the [GPL-3.0 license](LICENSE).
+The upstream copyright and license notices remain intact; modification history
+and dates are recorded in Git.

@@ -163,8 +163,21 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           spctl --assess --type execute --verbose=4 "$APP_PATH"
 
-          mkdir -p "$DIST_DIR"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$DIST_DIR/Ice.zip"
+          release_directory="$DIST_DIR/Ice"
+          mkdir -p "$release_directory"
+          ditto "$APP_PATH" "$release_directory/Ice.app"
+          codesign --verify --deep --strict --verbose=2 "$release_directory/Ice.app"
+          xcrun stapler validate "$release_directory/Ice.app"
+          cp "$GITHUB_WORKSPACE/LICENSE" "$release_directory/LICENSE"
+          printf 'Corresponding source: https://github.com/%s/tree/%s\n' \
+              "$GITHUB_REPOSITORY" \
+              "$RELEASE_TAG" \
+              > "$release_directory/SOURCE.txt"
+          ditto -c -k \
+              --sequesterRsrc \
+              --keepParent \
+              "$release_directory" \
+              "$DIST_DIR/Ice.zip"
           (
               cd "$DIST_DIR"
               shasum -a 256 Ice.zip > Ice.zip.sha256

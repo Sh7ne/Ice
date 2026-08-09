@@ -4,7 +4,8 @@ Pushing a version tag runs `.github/workflows/release.yml` on GitHub's
 Apple-silicon macOS 26 runner. The workflow builds the Release configuration,
 runs the XPC smoke test, signs every executable with Developer ID, notarizes the
 app with Apple, staples the ticket, and publishes `Ice.zip` plus its SHA-256
-checksum to GitHub Releases.
+checksum to GitHub Releases. The archive includes `Ice.app`, the GPL-3.0 license,
+and a link to the corresponding tagged source code.
 
 ## Apple requirements
 

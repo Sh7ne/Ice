@@ -11,9 +11,9 @@ By default, macOS adds new items to the far left of the menu bar, which is also 
 to remember the positions of their items, but some are not. macOS treats the items of these apps as new items each time they appear. This results in
 these items appearing in the always-hidden section, even if they have been previously been moved.
 
-Ice does not currently manage individual items, and in fact cannot, as of the current release. Once issues
-[#6](https://github.com/jordanbaird/Ice/issues/6) and [#26](https://github.com/jordanbaird/Ice/issues/26) are implemented, Ice will be able to
-monitor the items in the menu bar, and move the ones it recognizes to their previous locations, even if macOS rearranges them.
+Ice does not currently restore every menu bar item to its previous position
+after macOS moves it. Follow current work in the
+[roadmap](README.md#featuresroadmap).
 
 ## Ice removed an item
 
@@ -22,7 +22,8 @@ the always-hidden section, then Command + drag the item into a different section
 
 ## Ice does not remember the order of items
 
-This is not a bug, but a missing feature. It is being tracked in [#26](https://github.com/jordanbaird/Ice/issues/26).
+This is a missing feature rather than a bug. Check this repository's
+[roadmap](README.md#featuresroadmap) for current progress.
 
 ## How do I solve the `Ice cannot arrange menu bar items in automatically hidden menu bars` error?
 
