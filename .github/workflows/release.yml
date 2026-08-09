@@ -193,8 +193,8 @@ jobs:
         with:
           name: Ice-${{ env.RELEASE_TAG }}
           path: |
-            ${{ env.DIST_DIR }}/Ice.zip
-            ${{ env.DIST_DIR }}/Ice.zip.sha256
+            ${{ runner.temp }}/IceDistribution/Ice.zip
+            ${{ runner.temp }}/IceDistribution/Ice.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
