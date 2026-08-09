@@ -28,10 +28,6 @@ jobs:
       APPLE_TEAM_ID: AMHB5QVH4B
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-      DERIVED_DATA_PATH: ${{ runner.temp }}/IceDerivedData
-      SOURCE_PACKAGES_PATH: ${{ runner.temp }}/IceSourcePackages
-      APP_PATH: ${{ runner.temp }}/IceDerivedData/Build/Products/Release/Ice.app
-      DIST_DIR: ${{ runner.temp }}/IceDistribution
 
     steps:
       - name: Check out release tag
@@ -39,6 +35,15 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Configure runner paths
+        run: |
+          {
+              echo "DERIVED_DATA_PATH=$RUNNER_TEMP/IceDerivedData"
+              echo "SOURCE_PACKAGES_PATH=$RUNNER_TEMP/IceSourcePackages"
+              echo "APP_PATH=$RUNNER_TEMP/IceDerivedData/Build/Products/Release/Ice.app"
+              echo "DIST_DIR=$RUNNER_TEMP/IceDistribution"
+          } >> "$GITHUB_ENV"
 
       - name: Validate tag and release secrets
         env:
