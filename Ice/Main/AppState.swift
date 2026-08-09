@@ -70,7 +70,6 @@ final class AppState: ObservableObject {
         hidEventManager.performSetup(with: self)
         await itemManager.performSetup(with: self)
         imageCache.performSetup(with: self)
-        updatesManager.performSetup(with: self)
         userNotificationManager.performSetup(with: self)
 
         configureCancellables()
@@ -187,12 +186,6 @@ final class AppState: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &c)
-        updatesManager.objectWillChange
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &c)
-
         cancellables = c
     }
 
