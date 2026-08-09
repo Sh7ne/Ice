@@ -582,7 +582,6 @@ final class ControlItem {
     @objc private func showSearchPanel() {
         appState?.menuBarManager.searchPanel.show()
     }
-
 }
 
 // MARK: - ControlItemDefaults
