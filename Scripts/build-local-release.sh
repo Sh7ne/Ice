@@ -7,9 +7,42 @@ readonly CONFIGURATION="${CONFIGURATION:-Release}"
 readonly DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-${TMPDIR:-/tmp}/IceLocalDerivedData}"
 readonly SOURCE_PACKAGES_PATH="${SOURCE_PACKAGES_PATH:-${TMPDIR:-/tmp}/IceLocalSourcePackages}"
 readonly BUILD_ARCHS="${ICE_BUILD_ARCHS:-$(uname -m)}"
+readonly DEVELOPMENT_TEAM="${ICE_DEVELOPMENT_TEAM:-AMHB5QVH4B}"
 readonly APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/Ice.app"
 readonly MENU_BAR_ITEM_SERVICE_PATH="$APP_PATH/Contents/XPCServices/MenuBarItemService.xpc"
 readonly SPARKLE_PATH="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+readonly SPARKLE_VERSION_PATH="$SPARKLE_PATH/Versions/Current"
+readonly SPARKLE_AUTOUPDATE_PATH="$SPARKLE_VERSION_PATH/Autoupdate"
+readonly SPARKLE_UPDATER_PATH="$SPARKLE_VERSION_PATH/Updater.app"
+readonly SPARKLE_DOWNLOADER_PATH="$SPARKLE_VERSION_PATH/XPCServices/Downloader.xpc"
+readonly SPARKLE_INSTALLER_PATH="$SPARKLE_VERSION_PATH/XPCServices/Installer.xpc"
+
+if [[ "$BUILD_ARCHS" == *[[:space:]]* ]]; then
+    echo "Local releases require exactly one architecture" >&2
+    exit 1
+fi
+
+valid_identities="$(security find-identity -v -p codesigning)"
+if [[ -n "${ICE_CODE_SIGN_IDENTITY:-}" ]]; then
+    signing_identity="$ICE_CODE_SIGN_IDENTITY"
+else
+    signing_identity="$(
+        printf '%s\n' "$valid_identities" |
+            awk '/"Apple Development:/ { print $2; exit }'
+    )"
+    if [[ -z "$signing_identity" ]]; then
+        signing_identity="$(
+            printf '%s\n' "$valid_identities" |
+                awk '/"Developer ID Application:/ { print $2; exit }'
+        )"
+    fi
+fi
+
+if [[ -z "$signing_identity" ]]; then
+    echo "No valid Apple Development or Developer ID Application identity found" >&2
+    exit 1
+fi
+readonly SIGNING_IDENTITY="$signing_identity"
 
 xcodebuild -quiet \
     -project "$ROOT_DIR/Ice.xcodeproj" \
@@ -20,70 +53,116 @@ xcodebuild -quiet \
     -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_PATH" \
     -onlyUsePackageVersionsFromResolvedFile \
     CODE_SIGN_STYLE=Manual \
-    CODE_SIGN_IDENTITY=- \
+    CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
     CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-    DEVELOPMENT_TEAM= \
+    AD_HOC_CODE_SIGNING_ALLOWED=NO \
+    DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+    ENABLE_HARDENED_RUNTIME=YES \
     ENABLE_DEBUG_DYLIB=NO \
+    OTHER_CODE_SIGN_FLAGS=--timestamp=none \
     ARCHS="$BUILD_ARCHS" \
     ONLY_ACTIVE_ARCH=NO \
     build
 
-readonly SIGNING_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/IceLocalSigning.XXXXXX")"
-trap 'rm -rf "$SIGNING_TEMP_DIR"' EXIT
+readonly SPARKLE_BINARY_PATH="$SPARKLE_VERSION_PATH/Sparkle"
+readonly SPARKLE_UPDATER_BINARY_PATH="$SPARKLE_UPDATER_PATH/Contents/MacOS/Updater"
+readonly SPARKLE_DOWNLOADER_BINARY_PATH="$SPARKLE_DOWNLOADER_PATH/Contents/MacOS/Downloader"
+readonly SPARKLE_INSTALLER_BINARY_PATH="$SPARKLE_INSTALLER_PATH/Contents/MacOS/Installer"
 
-readonly ENTITLEMENTS_PATH="$SIGNING_TEMP_DIR/Ice.entitlements"
-readonly LIBRARY_CONSTRAINT_PATH="$SIGNING_TEMP_DIR/Sparkle.coderequirement"
+mach_o_paths=(
+    "$APP_PATH/Contents/MacOS/Ice"
+    "$MENU_BAR_ITEM_SERVICE_PATH/Contents/MacOS/MenuBarItemService"
+    "$SPARKLE_BINARY_PATH"
+    "$SPARKLE_AUTOUPDATE_PATH"
+    "$SPARKLE_UPDATER_BINARY_PATH"
+    "$SPARKLE_DOWNLOADER_BINARY_PATH"
+    "$SPARKLE_INSTALLER_BINARY_PATH"
+)
 
-# Xcode omits the hardened-runtime flag for ad-hoc target signatures. Restore
-# it on the embedded service before sealing its final hash into the main app.
-codesign \
-    --force \
-    --sign - \
-    --options runtime \
-    --timestamp=none \
-    "$MENU_BAR_ITEM_SERVICE_PATH"
-
-# Ad-hoc signatures have no Team ID, so the hardened runtime cannot apply its
-# default same-team rule to Sparkle. Keep the exception narrow by allowlisting
-# the exact Code Directory hashes of every architecture in the pinned binary.
-plutil -create xml1 "$ENTITLEMENTS_PATH"
-/usr/libexec/PlistBuddy \
-    -c "Add :com.apple.security.cs.disable-library-validation bool true" \
-    "$ENTITLEMENTS_PATH"
-/usr/libexec/PlistBuddy \
-    -c "Add :com.apple.security.files.user-selected.read-only bool true" \
-    "$ENTITLEMENTS_PATH"
-
-plutil -create xml1 "$LIBRARY_CONSTRAINT_PATH"
-plutil -insert cdhash -json '{"$in":[]}' "$LIBRARY_CONSTRAINT_PATH"
-
-index=0
-for architecture in $(lipo -archs "$APP_PATH/Contents/MacOS/Ice"); do
-    signature_info="$(codesign -d --arch "$architecture" --verbose=4 "$SPARKLE_PATH" 2>&1)"
-    cdhash="$(printf '%s\n' "$signature_info" | sed -n 's/^CDHash=//p')"
-    if [[ -z "$cdhash" ]]; then
-        echo "Unable to read Sparkle CDHash for $architecture" >&2
+for binary_path in "${mach_o_paths[@]}"; do
+    architectures="$(lipo -archs "$binary_path")"
+    if [[ " $architectures " != *" $BUILD_ARCHS "* ]]; then
+        echo "$binary_path does not contain the $BUILD_ARCHS architecture" >&2
         exit 1
     fi
-    encoded_hash="$(printf '%s' "$cdhash" | xxd -r -p | base64)"
-    plutil -insert "cdhash.\$in.$index" -data "$encoded_hash" "$LIBRARY_CONSTRAINT_PATH"
-    index=$((index + 1))
+    if [[ "$architectures" != "$BUILD_ARCHS" ]]; then
+        thin_path="$(mktemp "$binary_path.thin.XXXXXX")"
+        mode="$(stat -f '%Lp' "$binary_path")"
+        lipo "$binary_path" -thin "$BUILD_ARCHS" -output "$thin_path"
+        chmod "$mode" "$thin_path"
+        mv "$thin_path" "$binary_path"
+    fi
 done
 
-if [[ "$index" -eq 0 ]]; then
-    echo "Sparkle contains no supported architectures" >&2
-    exit 1
-fi
+embedded_code_paths=(
+    "$SPARKLE_AUTOUPDATE_PATH"
+    "$SPARKLE_UPDATER_PATH"
+    "$SPARKLE_DOWNLOADER_PATH"
+    "$SPARKLE_INSTALLER_PATH"
+    "$SPARKLE_PATH"
+    "$MENU_BAR_ITEM_SERVICE_PATH"
+)
 
-codesign --validate-constraint "$LIBRARY_CONSTRAINT_PATH"
+for code_path in "${embedded_code_paths[@]}"; do
+    codesign \
+        --force \
+        --sign "$SIGNING_IDENTITY" \
+        --options runtime \
+        --timestamp=none \
+        --preserve-metadata=identifier,entitlements \
+        "$code_path"
+done
+
 codesign \
     --force \
-    --sign - \
+    --sign "$SIGNING_IDENTITY" \
     --options runtime \
     --timestamp=none \
-    --entitlements "$ENTITLEMENTS_PATH" \
-    --library-constraint "$LIBRARY_CONSTRAINT_PATH" \
+    --preserve-metadata=identifier,entitlements \
     "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-printf 'Built local release: %s\n' "$APP_PATH"
+signature_paths=("$APP_PATH" "${embedded_code_paths[@]}")
+expected_team="$(
+    codesign -d --verbose=4 "$APP_PATH" 2>&1 |
+        sed -n 's/^TeamIdentifier=//p'
+)"
+if [[ -z "$expected_team" || "$expected_team" == "not set" ]]; then
+    echo "The local release does not have a signing Team ID" >&2
+    exit 1
+fi
+if [[ "$expected_team" != "$DEVELOPMENT_TEAM" ]]; then
+    echo "The signing identity belongs to Team $expected_team, not $DEVELOPMENT_TEAM" >&2
+    echo "Set ICE_DEVELOPMENT_TEAM to the selected identity's Team ID" >&2
+    exit 1
+fi
+
+for code_path in "${signature_paths[@]}"; do
+    signature_info="$(codesign -d --verbose=4 "$code_path" 2>&1)"
+    team="$(printf '%s\n' "$signature_info" | sed -n 's/^TeamIdentifier=//p')"
+    if [[ "$team" != "$expected_team" ]]; then
+        echo "$code_path is signed by Team $team instead of $expected_team" >&2
+        exit 1
+    fi
+    if [[ "$signature_info" != *"runtime"* || "$signature_info" == *"Signature=adhoc"* ]]; then
+        echo "$code_path is not Developer-signed with the hardened runtime" >&2
+        exit 1
+    fi
+
+    entitlements="$(codesign -d --entitlements - "$code_path" 2>&1)"
+    if [[ "$entitlements" == *"com.apple.security.cs.disable-library-validation"* || \
+        "$entitlements" == *"com.apple.security.get-task-allow"* ]]; then
+        echo "$code_path contains unsafe development entitlements" >&2
+        exit 1
+    fi
+done
+
+for binary_path in "${mach_o_paths[@]}"; do
+    architectures="$(lipo -archs "$binary_path")"
+    if [[ "$architectures" != "$BUILD_ARCHS" ]]; then
+        echo "$binary_path still contains non-$BUILD_ARCHS code" >&2
+        exit 1
+    fi
+done
+
+printf 'Built Developer-signed %s release: %s\n' "$BUILD_ARCHS" "$APP_PATH"

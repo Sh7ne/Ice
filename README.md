@@ -35,18 +35,21 @@ Install Ice using the following command:
 brew install --cask jordanbaird-ice
 ```
 
-### Local ad-hoc build
+### Local Developer-signed build
 
-To create a release for the current Mac without an Apple Development
-certificate, run:
+To create an Apple silicon release for the current Mac, install a valid Apple
+Development or Developer ID Application certificate and run:
 
 ```sh
 ./Scripts/build-local-release.sh
 ```
 
-The script keeps the hardened runtime enabled and restricts the required
-Sparkle library-validation exception to the exact hashes of the pinned
-framework binary. Regular Xcode builds and distribution signing are unchanged.
+The script selects an Apple Development identity by default, signs Ice and all
+embedded services with the same team, and keeps the hardened runtime enabled.
+It also removes Intel slices from Sparkle's updater components so the installed
+app does not depend on Rosetta. Set `ICE_CODE_SIGN_IDENTITY` to choose a
+different installed signing identity. When that identity belongs to another
+team, set its Team ID with `ICE_DEVELOPMENT_TEAM` as well.
 
 On macOS 26 or later, run the isolated Release app-to-XPC round-trip check
 without requesting Accessibility or Screen Recording permissions:
