@@ -8,6 +8,7 @@ readonly DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-${TMPDIR:-/tmp}/IceLocalDerived
 readonly SOURCE_PACKAGES_PATH="${SOURCE_PACKAGES_PATH:-${TMPDIR:-/tmp}/IceLocalSourcePackages}"
 readonly BUILD_ARCHS="${ICE_BUILD_ARCHS:-$(uname -m)}"
 readonly DEVELOPMENT_TEAM="${ICE_DEVELOPMENT_TEAM:-AMHB5QVH4B}"
+readonly DISTRIBUTION_BUILD="${ICE_DISTRIBUTION_BUILD:-0}"
 readonly APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/Ice.app"
 readonly MENU_BAR_ITEM_SERVICE_PATH="$APP_PATH/Contents/XPCServices/MenuBarItemService.xpc"
 readonly SPARKLE_PATH="$APP_PATH/Contents/Frameworks/Sparkle.framework"
@@ -21,6 +22,20 @@ if [[ "$BUILD_ARCHS" == *[[:space:]]* ]]; then
     echo "Local releases require exactly one architecture" >&2
     exit 1
 fi
+
+case "$DISTRIBUTION_BUILD" in
+0)
+    code_sign_timestamp_option="--timestamp=none"
+    ;;
+1)
+    code_sign_timestamp_option="--timestamp"
+    ;;
+*)
+    echo "ICE_DISTRIBUTION_BUILD must be 0 or 1" >&2
+    exit 1
+    ;;
+esac
+readonly CODE_SIGN_TIMESTAMP_OPTION="$code_sign_timestamp_option"
 
 valid_identities="$(security find-identity -v -p codesigning)"
 if [[ -n "${ICE_CODE_SIGN_IDENTITY:-}" ]]; then
@@ -44,6 +59,19 @@ if [[ -z "$signing_identity" ]]; then
 fi
 readonly SIGNING_IDENTITY="$signing_identity"
 
+selected_identity_info="$(
+    printf '%s\n' "$valid_identities" |
+        awk -v identity="$SIGNING_IDENTITY" 'index($0, identity) { print; exit }'
+)"
+if [[ -z "$selected_identity_info" ]]; then
+    echo "The requested code-signing identity is not valid" >&2
+    exit 1
+fi
+if [[ "$DISTRIBUTION_BUILD" == 1 && "$selected_identity_info" != *'"Developer ID Application:'* ]]; then
+    echo "Distribution builds require a Developer ID Application identity" >&2
+    exit 1
+fi
+
 xcodebuild -quiet \
     -project "$ROOT_DIR/Ice.xcodeproj" \
     -scheme Ice \
@@ -59,7 +87,7 @@ xcodebuild -quiet \
     DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
     ENABLE_HARDENED_RUNTIME=YES \
     ENABLE_DEBUG_DYLIB=NO \
-    OTHER_CODE_SIGN_FLAGS=--timestamp=none \
+    OTHER_CODE_SIGN_FLAGS="$CODE_SIGN_TIMESTAMP_OPTION" \
     ARCHS="$BUILD_ARCHS" \
     ONLY_ACTIVE_ARCH=NO \
     build
@@ -103,21 +131,26 @@ embedded_code_paths=(
     "$MENU_BAR_ITEM_SERVICE_PATH"
 )
 
-for code_path in "${embedded_code_paths[@]}"; do
+sign_code() {
     codesign \
         --force \
         --sign "$SIGNING_IDENTITY" \
         --options runtime \
-        --timestamp=none \
-        --preserve-metadata=identifier,entitlements \
-        "$code_path"
-done
+        "$CODE_SIGN_TIMESTAMP_OPTION" \
+        "$@"
+}
 
-codesign \
-    --force \
-    --sign "$SIGNING_IDENTITY" \
-    --options runtime \
-    --timestamp=none \
+# Only Downloader's entitlements are intended to survive Sparkle's ad-hoc signature.
+sign_code "$SPARKLE_INSTALLER_PATH"
+sign_code --preserve-metadata=entitlements "$SPARKLE_DOWNLOADER_PATH"
+sign_code "$SPARKLE_AUTOUPDATE_PATH"
+sign_code "$SPARKLE_UPDATER_PATH"
+sign_code "$SPARKLE_PATH"
+sign_code \
+    --preserve-metadata=identifier,entitlements \
+    "$MENU_BAR_ITEM_SERVICE_PATH"
+
+sign_code \
     --preserve-metadata=identifier,entitlements \
     "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
@@ -148,11 +181,20 @@ for code_path in "${signature_paths[@]}"; do
         echo "$code_path is not Developer-signed with the hardened runtime" >&2
         exit 1
     fi
+    if [[ "$DISTRIBUTION_BUILD" == 1 && "$signature_info" != *"Timestamp="* ]]; then
+        echo "$code_path does not have a secure signing timestamp" >&2
+        exit 1
+    fi
 
     entitlements="$(codesign -d --entitlements - "$code_path" 2>&1)"
     if [[ "$entitlements" == *"com.apple.security.cs.disable-library-validation"* || \
         "$entitlements" == *"com.apple.security.get-task-allow"* ]]; then
         echo "$code_path contains unsafe development entitlements" >&2
+        exit 1
+    fi
+    if [[ "$code_path" == "$SPARKLE_AUTOUPDATE_PATH" && \
+        "$entitlements" == *"com.apple.application-identifier"* ]]; then
+        echo "$code_path retained Sparkle's ad-hoc application identifier" >&2
         exit 1
     fi
 done
@@ -165,4 +207,8 @@ for binary_path in "${mach_o_paths[@]}"; do
     fi
 done
 
-printf 'Built Developer-signed %s release: %s\n' "$BUILD_ARCHS" "$APP_PATH"
+if [[ "$DISTRIBUTION_BUILD" == 1 ]]; then
+    printf 'Built Developer ID-signed %s release: %s\n' "$BUILD_ARCHS" "$APP_PATH"
+else
+    printf 'Built Developer-signed %s release: %s\n' "$BUILD_ARCHS" "$APP_PATH"
+fi
