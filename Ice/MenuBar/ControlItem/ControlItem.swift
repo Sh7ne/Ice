@@ -78,15 +78,14 @@ final class ControlItem {
                 // status item to be present if its section is enabled. The new solution is to remove
                 // a constraint from the item's content view prevents it from having a length of zero.
                 // Then, we set the length. FIXME: Find a replacement for this.
+                var foundConstraint: NSLayoutConstraint?
                 if
-                    let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal),
-                    let constraint = constraints.first(where: Predicates.controlItemConstraint(button: button))
+                    let contentView = button.window?.contentView,
+                    let constraints = try? contentView.constraintsAffectingLayout(for: .horizontal)
                 {
-                    assert(constraints.filter(Predicates.controlItemConstraint(button: button)).count == 1)
-                    self.constraint = constraint
-                } else {
-                    self.constraint = nil
+                    foundConstraint = constraints.first(where: Predicates.controlItemConstraint(button: button))
                 }
+                self.constraint = foundConstraint
 
                 button.target = controlItem
                 button.action = #selector(controlItem.performAction)

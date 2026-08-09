@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Ice needs Accessibility permission to detect and arrange menu bar items.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Ice needs Screen Recording permission to capture menu bar item images and customize the menu bar.</string>
 	<key>SUFeedURL</key>
 	<string>https://jordanbaird.github.io/ice-releases/appcast.xml</string>
 	<key>SUPublicEDKey</key>
