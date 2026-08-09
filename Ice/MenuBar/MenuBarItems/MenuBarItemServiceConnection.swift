@@ -38,20 +38,21 @@ extension MenuBarItemService {
         }
 
         /// Starts the connection.
-        func start() async {
+        @discardableResult
+        func start() async -> Bool {
             logger.debug("Starting MenuBarItemService connection")
 
-            await withCheckedContinuation { continuation in
+            return await withCheckedContinuation { continuation in
                 guard let response = session.send(request: .start) else {
                     logger.error("Start request returned nil")
-                    continuation.resume()
+                    continuation.resume(returning: false)
                     return
                 }
                 if case .start = response {
-                    continuation.resume()
+                    continuation.resume(returning: true)
                 } else {
                     logger.error("Start request returned invalid response \(String(describing: response))")
-                    continuation.resume()
+                    continuation.resume(returning: false)
                 }
             }
         }
@@ -103,7 +104,21 @@ extension MenuBarItemService {
                 let session = try XPCSession(xpcService: name, options: .inactive) { [logger] error in
                     logger.warning("Session was cancelled with error \(error.localizedDescription)")
                 }
-                session.setPeerRequirement(.isFromSameTeam())
+                let appURL = Bundle.main.bundleURL
+                try MenuBarItemService.validateBundle(at: appURL)
+                try MenuBarItemService.validateCurrentProcess(inBundleAt: appURL)
+                let serviceURL = appURL
+                    .appendingPathComponent("Contents/XPCServices")
+                    .appendingPathComponent("MenuBarItemService.xpc")
+                let requirement = try MenuBarItemService.peerRequirement(
+                    forBundleAt: serviceURL,
+                    signingIdentifier: name
+                )
+                // Recheck after reading the service hashes so a concurrent
+                // replacement fails before the session is activated.
+                try MenuBarItemService.validateBundle(at: appURL)
+                try MenuBarItemService.validateCurrentProcess(inBundleAt: appURL)
+                session.setPeerRequirement(requirement)
                 session.setTargetQueue(queue)
                 try session.activate()
                 self.session = session

@@ -30,9 +30,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // to make menu bar item movement less jarring.
         Bridging.setConnectionProperty(true, forKey: "SetsCursorInBackground")
 
+        let environment = ProcessInfo.processInfo.environment
+        if environment["ICE_XPC_SMOKE_TEST"] == "1" {
+            guard #available(macOS 26.0, *) else {
+                print("XPC_SMOKE_TEST_SKIP_UNSUPPORTED_OS")
+                NSApp.terminate(nil)
+                return
+            }
+            Task {
+                let succeeded = await MenuBarItemService.Connection.shared.start()
+                print(succeeded ? "XPC_SMOKE_TEST_PASS" : "XPC_SMOKE_TEST_FAIL")
+                NSApp.terminate(nil)
+            }
+            return
+        }
+
         #if DEBUG
         // Don't perform setup if running as a preview.
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+        if environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
             return
         }
         #endif

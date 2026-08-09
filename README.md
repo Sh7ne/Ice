@@ -35,6 +35,26 @@ Install Ice using the following command:
 brew install --cask jordanbaird-ice
 ```
 
+### Local ad-hoc build
+
+To create a release for the current Mac without an Apple Development
+certificate, run:
+
+```sh
+./Scripts/build-local-release.sh
+```
+
+The script keeps the hardened runtime enabled and restricts the required
+Sparkle library-validation exception to the exact hashes of the pinned
+framework binary. Regular Xcode builds and distribution signing are unchanged.
+
+On macOS 26 or later, run the isolated Release app-to-XPC round-trip check
+without requesting Accessibility or Screen Recording permissions:
+
+```sh
+./Scripts/smoke-test-xpc.sh
+```
+
 ## Features/Roadmap
 
 ### Menu bar item management
