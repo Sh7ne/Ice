@@ -24,9 +24,30 @@ final class HIDEventManager: ObservableObject {
     /// History of the manager's enabled states.
     private var enabledStateStack = [Bool]()
 
+    /// The pending show-on-hover transition.
+    private enum HoverTransition: Equatable {
+        case show
+        case hide
+    }
+
+    /// The task performing the pending show-on-hover transition.
+    private var hoverTransitionTask: Task<Void, Never>?
+
+    /// The kind of pending show-on-hover transition.
+    private var pendingHoverTransition: HoverTransition?
+
+    /// A generation used to prevent canceled hover tasks from publishing results.
+    private var hoverTransitionGeneration: UInt = 0
+
+    /// A Boolean value that indicates whether the mouse-moved tap has been started.
+    private var isMouseMovedTapStarted = false
+
     /// A Boolean value that indicates whether the manager is enabled.
     private var isEnabled = false {
         didSet {
+            guard oldValue != isEnabled else {
+                return
+            }
             if isEnabled {
                 for monitor in allMonitors {
                     monitor.start()
@@ -36,6 +57,7 @@ final class HIDEventManager: ObservableObject {
                     monitor.stop()
                 }
             }
+            updateMouseMovedTap()
         }
     }
 
@@ -112,7 +134,6 @@ final class HIDEventManager: ObservableObject {
         mouseDownMonitor,
         mouseUpMonitor,
         mouseDraggedMonitor,
-        mouseMovedTap,
         scrollWheelMonitor,
     ]
 
@@ -128,6 +149,18 @@ final class HIDEventManager: ObservableObject {
     /// Configures the internal observers for the manager.
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
+
+        if let appState {
+            Publishers.CombineLatest(
+                appState.settings.general.$showOnHover.removeDuplicates(),
+                appState.menuBarManager.$showOnHoverAllowed.removeDuplicates()
+            )
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _, _ in
+                self?.updateMouseMovedTap()
+            }
+            .store(in: &c)
+        }
 
         if let appState, let hiddenSection = appState.menuBarManager.section(withName: .hidden) {
             // In fullscreen mode, the menu bar slides down from the top on hover. Observe the
@@ -151,6 +184,26 @@ final class HIDEventManager: ObservableObject {
         }
 
         cancellables = c
+    }
+
+    /// Starts or stops the mouse-moved tap according to the current settings.
+    private func updateMouseMovedTap() {
+        let shouldStart = isEnabled &&
+            appState?.settings.general.showOnHover == true &&
+            appState?.menuBarManager.showOnHoverAllowed == true
+
+        if shouldStart != isMouseMovedTapStarted {
+            isMouseMovedTapStarted = shouldStart
+            if shouldStart {
+                mouseMovedTap.start()
+            } else {
+                mouseMovedTap.stop()
+            }
+        }
+
+        if !shouldStart {
+            cancelHoverTransition()
+        }
     }
 
     // MARK: Start/Stop
@@ -329,52 +382,95 @@ extension HIDEventManager {
     // MARK: Handle Show On Hover
 
     private func handleShowOnHover(appState: AppState, screen: NSScreen) {
-        // Make sure the "ShowOnHover" feature is enabled and allowed.
-        guard
-            appState.settings.general.showOnHover,
-            appState.menuBarManager.showOnHoverAllowed
-        else {
+        guard let transition = hoverTransition(appState: appState, screen: screen) else {
+            cancelHoverTransition()
             return
         }
 
-        // Only continue if we have a hidden section (we should).
-        guard let hiddenSection = appState.menuBarManager.section(withName: .hidden) else {
+        // Reuse the task while the pointer remains in the same region. Treating
+        // every mouse-moved event as a debounce would prevent the transition
+        // from firing while the pointer is moving.
+        guard pendingHoverTransition != transition else {
             return
         }
 
+        cancelHoverTransition()
+        pendingHoverTransition = transition
+        hoverTransitionGeneration &+= 1
+        let generation = hoverTransitionGeneration
         let delay = appState.settings.advanced.showOnHoverDelay
 
-        if hiddenSection.isHidden {
-            guard isMouseInsideEmptyMenuBarSpace(appState: appState, screen: screen) else {
+        hoverTransitionTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(delay))
+            } catch {
                 return
             }
-            Task {
-                try await Task.sleep(for: .seconds(delay))
-                // Make sure the mouse is still inside.
-                guard isMouseInsideEmptyMenuBarSpace(appState: appState, screen: screen) else {
-                    return
-                }
-                hiddenSection.show()
-            }
-        } else {
+
             guard
-                !isMouseInsideMenuBar(appState: appState, screen: screen),
-                !isMouseInsideIceBar(appState: appState)
+                let self,
+                generation == self.hoverTransitionGeneration,
+                let appState = self.appState,
+                let screen = self.bestScreen(appState: appState),
+                self.hoverTransition(appState: appState, screen: screen) == transition,
+                let hiddenSection = appState.menuBarManager.section(withName: .hidden)
             else {
+                self?.clearHoverTransition(generation: generation)
                 return
             }
-            Task {
-                try await Task.sleep(for: .seconds(delay))
-                // Make sure the mouse is still outside.
-                guard
-                    !isMouseInsideMenuBar(appState: appState, screen: screen),
-                    !isMouseInsideIceBar(appState: appState)
-                else {
-                    return
-                }
+
+            switch transition {
+            case .show:
+                hiddenSection.show()
+            case .hide:
                 hiddenSection.hide()
             }
+            self.clearHoverTransition(generation: generation)
         }
+    }
+
+    /// Returns the show-on-hover transition appropriate for the current pointer location.
+    private func hoverTransition(appState: AppState, screen: NSScreen) -> HoverTransition? {
+        guard
+            isEnabled,
+            appState.settings.general.showOnHover,
+            appState.menuBarManager.showOnHoverAllowed,
+            let hiddenSection = appState.menuBarManager.section(withName: .hidden)
+        else {
+            return nil
+        }
+
+        if hiddenSection.isHidden {
+            return isMouseInsideEmptyMenuBarSpace(appState: appState, screen: screen) ? .show : nil
+        }
+
+        guard
+            !isMouseInsideMenuBar(appState: appState, screen: screen),
+            !isMouseInsideIceBar(appState: appState)
+        else {
+            return nil
+        }
+        return .hide
+    }
+
+    /// Cancels the pending show-on-hover transition.
+    private func cancelHoverTransition() {
+        guard hoverTransitionTask != nil || pendingHoverTransition != nil else {
+            return
+        }
+        hoverTransitionGeneration &+= 1
+        hoverTransitionTask?.cancel()
+        hoverTransitionTask = nil
+        pendingHoverTransition = nil
+    }
+
+    /// Clears a completed transition if it is still the current generation.
+    private func clearHoverTransition(generation: UInt) {
+        guard generation == hoverTransitionGeneration else {
+            return
+        }
+        hoverTransitionTask = nil
+        pendingHoverTransition = nil
     }
 
     // MARK: Handle Prevent Show On Hover

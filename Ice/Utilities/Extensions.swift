@@ -501,6 +501,40 @@ extension NSImage {
 
 // MARK: - NSScreen
 
+/// A snapshot of the display information needed to query an application menu frame.
+struct ApplicationMenuFrameQuery: Sendable {
+    let displayID: CGDirectDisplayID
+    let invalidWidthThreshold: CGFloat?
+
+    /// Returns the frame of the application menu represented by this query.
+    func execute() -> CGRect? {
+        let displayBounds = CGDisplayBounds(displayID)
+
+        guard
+            let menuBar = AXHelpers.element(at: displayBounds.origin),
+            AXHelpers.role(for: menuBar) == .menuBar
+        else {
+            return nil
+        }
+
+        let applicationMenuFrame = AXHelpers.children(for: menuBar).reduce(into: CGRect.null) { result, child in
+            if AXHelpers.isEnabled(child), let childFrame = AXHelpers.frame(for: child) {
+                result = result.union(childFrame)
+            }
+        }
+
+        if applicationMenuFrame.width <= 0 || applicationMenuFrame.isNull {
+            return nil
+        }
+
+        if let invalidWidthThreshold, applicationMenuFrame.width >= invalidWidthThreshold {
+            return nil
+        }
+
+        return applicationMenuFrame
+    }
+}
+
 extension NSScreen {
     /// The screen containing the mouse pointer.
     static var screenWithMouse: NSScreen? {
@@ -549,44 +583,34 @@ extension NSScreen {
         return menuBarWindow?.bounds.height
     }
 
-    /// Returns the frame of the application menu on this screen.
-    func getApplicationMenuFrame() -> CGRect? {
-        let displayBounds = CGDisplayBounds(displayID)
-
-        guard
-            let menuBar = AXHelpers.element(at: displayBounds.origin),
-            AXHelpers.role(for: menuBar) == .menuBar
-        else {
-            return nil
-        }
-
-        let applicationMenuFrame = AXHelpers.children(for: menuBar).reduce(into: CGRect.null) { result, child in
-            if AXHelpers.isEnabled(child), let childFrame = AXHelpers.frame(for: child) {
-                result = result.union(childFrame)
-            }
-        }
-
-        if applicationMenuFrame.width <= 0 || applicationMenuFrame.isNull {
-            return nil
-        }
-
+    /// A snapshot containing the display information needed to query the application menu frame.
+    var applicationMenuFrameQuery: ApplicationMenuFrameQuery {
         // FIXME: The Accessibility API always returns the menu bar for the main screen.
         // This can cause issues if one of the screens has a notch, since long app menus
         // can display items the trailing side of the notch. This causes the frame to be
         // invalid for all other screens. For now, we're working around this by checking
         // the app menu's frame on inactive screens, and returning `nil` if it overlaps
         // with the notch.
-        if
+        let invalidWidthThreshold: CGFloat? = if
             let mainScreen = NSScreen.main,
             self != mainScreen,
             let notchedScreen = NSScreen.screens.first(where: { $0.hasNotch }),
-            let leftArea = notchedScreen.auxiliaryTopLeftArea,
-            applicationMenuFrame.width >= leftArea.maxX
+            let leftArea = notchedScreen.auxiliaryTopLeftArea
         {
-            return nil
+            leftArea.maxX
+        } else {
+            nil
         }
 
-        return applicationMenuFrame
+        return ApplicationMenuFrameQuery(
+            displayID: displayID,
+            invalidWidthThreshold: invalidWidthThreshold
+        )
+    }
+
+    /// Returns the frame of the application menu on this screen.
+    func getApplicationMenuFrame() -> CGRect? {
+        applicationMenuFrameQuery.execute()
     }
 }
 

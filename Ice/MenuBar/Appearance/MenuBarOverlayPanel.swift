@@ -26,6 +26,7 @@ final class MenuBarOverlayPanel: NSPanel {
     }
 
     /// A context that manages panel update tasks.
+    @MainActor
     private final class UpdateTaskContext {
         private var tasks = [UpdateFlag: Task<Void, any Error>]()
 
@@ -49,6 +50,21 @@ final class MenuBarOverlayPanel: NSPanel {
         /// - Parameter flag: The update flag to cancel the task for.
         func cancelTask(for flag: UpdateFlag) {
             tasks.removeValue(forKey: flag)?.cancel()
+        }
+
+        /// Cancels every managed update task.
+        func cancelAll() {
+            let activeTasks = Array(tasks.values)
+            tasks.removeAll()
+            for task in activeTasks {
+                task.cancel()
+            }
+        }
+
+        deinit {
+            for task in tasks.values {
+                task.cancel()
+            }
         }
     }
 
@@ -124,10 +140,15 @@ final class MenuBarOverlayPanel: NSPanel {
                 guard let self else {
                     return
                 }
-                updateTaskContext.setTask(for: .desktopWallpaper, timeout: .seconds(5)) {
+                updateTaskContext.setTask(for: .desktopWallpaper, timeout: .seconds(5)) { [weak self] in
                     while true {
                         try Task.checkCancellation()
-                        self.insertUpdateFlag(.desktopWallpaper)
+                        await MainActor.run {
+                            guard !Task.isCancelled else {
+                                return
+                            }
+                            self?.insertUpdateFlag(.desktopWallpaper)
+                        }
                         try await Task.sleep(for: .seconds(1))
                     }
                 }
@@ -144,33 +165,51 @@ final class MenuBarOverlayPanel: NSPanel {
                 .compactMap { $0 == $1 ? nil : $0 }
         )
         .removeDuplicates()
+        .receive(on: DispatchQueue.main)
         .sink { [weak self] _ in
             guard let self else {
                 return
             }
-            updateTaskContext.setTask(for: .applicationMenuFrame, timeout: .seconds(10)) {
+            let applicationMenuFrameQuery = owningScreen.applicationMenuFrameQuery
+            updateTaskContext.setTask(for: .applicationMenuFrame, timeout: .seconds(10)) { [weak self] in
                 var hasDoneInitialUpdate = false
+                var retryDelayMilliseconds = 50
                 while true {
                     try Task.checkCancellation()
-                    guard
-                        let latestFrame = self.owningScreen.getApplicationMenuFrame(),
-                        latestFrame != self.applicationMenuFrame
-                    else {
-                        if hasDoneInitialUpdate {
-                            try await Task.sleep(for: .seconds(1))
-                        } else {
-                            try await Task.sleep(for: .milliseconds(1))
+                    let latestFrame = applicationMenuFrameQuery.execute()
+                    try Task.checkCancellation()
+
+                    let didUpdate = await MainActor.run { [weak self] in
+                        guard
+                            !Task.isCancelled,
+                            let self,
+                            let latestFrame,
+                            latestFrame != self.applicationMenuFrame
+                        else {
+                            return false
                         }
-                        continue
+                        self.insertUpdateFlag(.applicationMenuFrame)
+                        return true
                     }
-                    self.insertUpdateFlag(.applicationMenuFrame)
-                    hasDoneInitialUpdate = true
+                    if didUpdate {
+                        hasDoneInitialUpdate = true
+                    }
+
+                    if hasDoneInitialUpdate {
+                        try await Task.sleep(for: .seconds(1))
+                    } else {
+                        try await Task.sleep(for: .milliseconds(retryDelayMilliseconds))
+                        retryDelayMilliseconds = min(retryDelayMilliseconds * 2, 250)
+                    }
                 }
             }
-            Task {
+            Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(100))
-                if self.owningScreen != NSScreen.main {
-                    self.updateTaskContext.cancelTask(for: .applicationMenuFrame)
+                guard let self else {
+                    return
+                }
+                if owningScreen != NSScreen.main {
+                    updateTaskContext.cancelTask(for: .applicationMenuFrame)
                 }
             }
         }
@@ -245,6 +284,14 @@ final class MenuBarOverlayPanel: NSPanel {
         }
 
         cancellables = c
+    }
+
+    /// Permanently stops this panel and releases its background work.
+    func invalidateAndClose() {
+        updateTaskContext.cancelAll()
+        cancellables.removeAll()
+        needsShow = false
+        close()
     }
 
     /// Inserts the given update flag into the panel's current list of update flags.
