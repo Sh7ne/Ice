@@ -1,9 +1,11 @@
 <div align="center">
     <img src="docs/assets/app-icon.png" alt="Ice app icon" width="200" height="200">
-    <h1>Ice</h1>
+    <h1>Ice - macOS Menu Bar Manager</h1>
 </div>
 
-Ice is a powerful menu bar management tool. While its primary function is hiding and showing menu bar items, it aims to cover a wide variety of additional features to make it one of the most versatile menu bar tools available.
+<p align="center">English | <a href="README.zh-CN.md">简体中文</a></p>
+
+Ice is an open-source macOS menu bar manager for hiding, showing, and organizing menu bar icons. This fork provides Apple silicon (arm64) DMGs and an experimental macOS 27 compatibility release, alongside the legacy macOS 14-26 backend.
 
 ![Banner](https://github.com/user-attachments/assets/4423085c-4e4b-4f3d-ad0f-90a217c03470)
 
@@ -23,6 +25,15 @@ Ice is a powerful menu bar management tool. While its primary function is hiding
 > Ice is currently in active development. Some features have not yet been implemented. Download the latest release [here](https://github.com/Sh7ne/Ice/releases/latest) and see the roadmap below for upcoming features.
 
 ## Install
+
+### macOS 27 Preview
+
+The [macOS 27 preview release](https://github.com/Sh7ne/Ice/releases/tag/v0.11.13-sh7ne.3-preview.2)
+and `macos-27-compatibility` branch include opt-in, experimental app-based
+hiding. It is not feature-equivalent to the macOS 26 release: hiding can also
+affect system extras and the clock's Notification Center shortcut. Read the
+[compatibility notes](https://github.com/Sh7ne/Ice/blob/macos-27-compatibility/docs/MACOS-27.md) before enabling it. The feature checklist
+below describes the legacy macOS 14-26 backend.
 
 ### Manual Installation
 
@@ -113,6 +124,8 @@ the tag format and signing details.
 Ice uses a number of system APIs that are available starting in macOS 14. As such, there are no plans to support earlier versions of macOS.
 
 ## Gallery
+
+These screenshots show legacy features on macOS 14-26, not feature parity with the macOS 27 preview.
 
 #### Show hidden menu bar items below the menu bar
 
