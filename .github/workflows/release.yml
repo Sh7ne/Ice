@@ -110,7 +110,7 @@ jobs:
               'This automated build is ad-hoc signed and is not notarized by Apple. macOS may require explicit approval in System Settings > Privacy & Security after installing or updating.' \
               > "$notes_path"
 
-          release_flags=()
+          release_flags=(--prerelease=false)
           if [[ "$RELEASE_TAG" == *-preview.* ]]; then
               release_flags=(--prerelease --latest=false)
               printf '\n%s\n\n%s\n\n%s\n\n%s\n' \
