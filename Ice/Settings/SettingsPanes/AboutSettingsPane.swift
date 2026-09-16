@@ -14,14 +14,14 @@ struct AboutSettingsPane: View {
     }
 
     private var githubURL: URL {
-        guard let url = URL(string: "https://github.com/Sh7ne/Ice") else {
+        guard let url = URL(string: "https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager") else {
             preconditionFailure("Invalid GitHub URL")
         }
         return url
     }
 
     private var licenseURL: URL {
-        guard let url = URL(string: "https://github.com/Sh7ne/Ice/blob/HEAD/LICENSE") else {
+        guard let url = URL(string: "https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/blob/HEAD/LICENSE") else {
             preconditionFailure("Invalid license URL")
         }
         return url

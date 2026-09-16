@@ -6,7 +6,7 @@ readonly ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 readonly APP_PATH="${APP_PATH:?APP_PATH is required}"
 readonly OUTPUT_PATH="${OUTPUT_PATH:?OUTPUT_PATH is required}"
 readonly RELEASE_TAG="${RELEASE_TAG:?RELEASE_TAG is required}"
-readonly REPOSITORY="${GITHUB_REPOSITORY:-Sh7ne/Ice}"
+readonly REPOSITORY="${GITHUB_REPOSITORY:-Sh7ne/Ice-macOS-Menu-Bar-Manager}"
 readonly SOURCE_URL="https://github.com/$REPOSITORY/tree/$RELEASE_TAG"
 
 if [[ ! -d "$APP_PATH" ]]; then
