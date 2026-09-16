@@ -110,6 +110,17 @@ jobs:
               'This automated build is ad-hoc signed and is not notarized by Apple. macOS may require explicit approval in System Settings > Privacy & Security after installing or updating.' \
               > "$notes_path"
 
+          release_flags=()
+          if [[ "$RELEASE_TAG" == *-preview.* ]]; then
+              release_flags=(--prerelease --latest=false)
+              printf '\n%s\n\n%s\n\n%s\n\n%s\n' \
+                  'macOS 27 compatibility preview: opt-in app hiding/reveal, system-item visibility settings (including grouped Time Machine / Siri), and settings layout fixes.' \
+                  'Known limitations: hiding can also conceal additional system controls and prevent the clock from opening Notification Center. Reveal all sections, disable experimental hiding, or quit Ice to restore normal behavior.' \
+                  'Ice Bar, divider dragging, and several legacy reveal modes are unavailable on macOS 27. macOS 14-26 continue to use the legacy backend.' \
+                  "Details: https://github.com/$GITHUB_REPOSITORY/blob/$RELEASE_TAG/docs/MACOS-27.md" \
+                  >> "$notes_path"
+          fi
+
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
               gh release upload "$RELEASE_TAG" \
                   "$DMG_PATH#Ice for Apple silicon (ad-hoc signed)" \
@@ -117,12 +128,14 @@ jobs:
                   --clobber
               gh release edit "$RELEASE_TAG" \
                   --notes-file "$notes_path" \
-                  --title "Ice $RELEASE_TAG"
+                  --title "Ice $RELEASE_TAG" \
+                  "${release_flags[@]}"
           else
               gh release create "$RELEASE_TAG" \
                   "$DMG_PATH#Ice for Apple silicon (ad-hoc signed)" \
                   "$DMG_PATH.sha256#SHA-256 checksum" \
                   --verify-tag \
                   --notes-file "$notes_path" \
-                  --title "Ice $RELEASE_TAG"
+                  --title "Ice $RELEASE_TAG" \
+                  "${release_flags[@]}"
           fi
