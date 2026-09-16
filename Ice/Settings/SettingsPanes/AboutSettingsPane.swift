@@ -24,10 +24,47 @@ struct AboutSettingsPane: View {
     }
 
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 27.0, *) {
+            modernContent
+        } else if #available(macOS 26.0, *) {
             contentForm(cornerStyle: .continuous)
         } else {
             contentForm(cornerStyle: .circular)
+        }
+    }
+
+    private var modernContent: some View {
+        IceForm(alignment: .leading, spacing: 24) {
+            HStack(alignment: .center, spacing: 20) {
+                if let icon = NSImage(named: NSImage.applicationIconName) {
+                    Image(nsImage: icon)
+                        .resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 104, height: 104)
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ice").font(.system(size: 34, weight: .semibold))
+                    Text("Version \(Constants.versionString)")
+                        .font(.body).foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Text(Constants.copyrightString)
+                .font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Divider()
+            HStack(spacing: 16) {
+                Button {
+                    openURL(githubURL)
+                } label: {
+                    Label("GitHub", systemImage: "arrow.up.right")
+                }
+                Button("License") { openURL(licenseURL) }
+                Button("Acknowledgements") { NSWorkspace.shared.open(acknowledgementsURL) }
+            }
+            .buttonStyle(.link)
+            Button("Quit Ice") { NSApp.terminate(nil) }
         }
     }
 

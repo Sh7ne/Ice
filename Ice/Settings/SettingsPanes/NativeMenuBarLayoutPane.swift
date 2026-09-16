@@ -9,11 +9,16 @@ struct NativeMenuBarLayoutPane: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var manager: NativeMenuBarManager
     @State private var isConfirmingExperimentalHiding = false
+    @State private var searchText = ""
+
+    private var filteredItems: [NativeMenuBarSnapshot.Item] {
+        manager.items.filter { searchText.isEmpty || $0.name.localizedStandardContains(searchText) || $0.id.localizedStandardContains(searchText) }
+    }
 
     var body: some View {
         IceForm(spacing: 16) {
             IceSection {
-                Toggle("Experimental app hiding", isOn: Binding(
+                Toggle("Experimental hiding", isOn: Binding(
                     get: { manager.experimentalHidingEnabled },
                     set: { enabled in
                         if enabled {
@@ -27,10 +32,12 @@ struct NativeMenuBarLayoutPane: View {
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            IceSection {
+            IceSection(options: .plain) {
                 HStack {
-                    Text("Menu Bar Apps").font(.headline)
-                    Spacer()
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search menu bar items", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .accessibilityLabel("Search menu bar items")
                     Button {
                         Task { await manager.refresh() }
                     } label: {
@@ -42,33 +49,13 @@ struct NativeMenuBarLayoutPane: View {
                 if let error = manager.error {
                     Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                 }
-                if manager.items.isEmpty {
-                    Text(manager.isRefreshing ? "Loading..." : "No menu bar apps found.")
+                if filteredItems.isEmpty {
+                    Text(manager.isRefreshing ? "Loading..." : "No matching menu bar items.")
                         .foregroundStyle(.secondary)
                 }
-                ForEach(manager.items) { item in
-                    HStack {
-                        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.id) {
-                            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                                .resizable().frame(width: 24, height: 24)
-                        }
-                        Text(item.name).lineLimit(2)
-                        Spacer()
-                        Picker(item.name, selection: Binding(
-                            get: { manager.sections[item.id] ?? 0 },
-                            set: { manager.setSection($0, for: item.id) }
-                        )) {
-                            Text("Visible").tag(0)
-                            Text("Hidden").tag(1)
-                            if appState.settings.advanced.enableAlwaysHiddenSection || manager.sections[item.id] == 2 {
-                                Text("Always-Hidden").tag(2)
-                            }
-                        }
-                        .labelsHidden().frame(width: 150)
-                    }
-                    .padding(.vertical, 4)
-                }
             }
+            itemGroup("Apps", items: filteredItems.filter { !NativeMenuBarPolicy.isSystem($0.id) })
+            itemGroup("System Items", items: filteredItems.filter { NativeMenuBarPolicy.isSystem($0.id) })
         }
         .confirmationDialog("Enable experimental hiding?", isPresented: $isConfirmingExperimentalHiding) {
             Button("Enable") { manager.experimentalHidingEnabled = true }
@@ -77,5 +64,79 @@ struct NativeMenuBarLayoutPane: View {
             Text("macOS may hide additional system icons and disable the clock's Notification Center shortcut. Show all sections or disable this option to restore them.")
         }
         .task { await manager.refresh() }
+    }
+
+    @ViewBuilder
+    private func itemGroup(_ title: LocalizedStringKey, items: [NativeMenuBarSnapshot.Item]) -> some View {
+        if !items.isEmpty {
+            IceSection(title) {
+                ForEach(items) { item in
+                    itemRow(item)
+                }
+            }
+        }
+    }
+
+    private func itemRow(_ item: NativeMenuBarSnapshot.Item) -> some View {
+        HStack(spacing: 12) {
+            itemIcon(item)
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.name).fixedSize(horizontal: false, vertical: true)
+                if item.id == NativeMenuBarPolicy.systemHost {
+                    Text("Shared system process; items hide together")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if NativeMenuBarPolicy.isManageable(item.id, ownBundle: Bundle.main.bundleIdentifier ?? "com.jordanbaird.Ice") {
+                Picker(item.name, selection: Binding(
+                    get: { manager.sections[item.id] ?? 0 },
+                    set: { manager.setSection($0, for: item.id) }
+                )) {
+                    Text("Visible").tag(0)
+                    Text("Hidden").tag(1)
+                    if appState.settings.advanced.enableAlwaysHiddenSection || manager.sections[item.id] == 2 {
+                        Text("Always-Hidden").tag(2)
+                    }
+                }
+                .labelsHidden().frame(width: 150)
+            } else {
+                Label("System-managed", systemImage: "lock")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(width: 150, alignment: .trailing)
+                    .help("macOS does not support independently hiding this item.")
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func itemIcon(_ item: NativeMenuBarSnapshot.Item) -> some View {
+        if !NativeMenuBarPolicy.isSystem(item.id),
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.id) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable()
+        } else {
+            Image(systemName: systemSymbol(for: item.id))
+                .font(.system(size: 18)).foregroundStyle(.secondary)
+        }
+    }
+
+    private func systemSymbol(for id: String) -> String {
+        if id == NativeMenuBarPolicy.systemHost { return "clock.arrow.circlepath" }
+        switch NativeMenuBarPolicy.systemItemNumber(for: id) {
+        case 0: return "battery.100percent"
+        case 1: return "antenna.radiowaves.left.and.right"
+        case 2: return "clock"
+        case 3: return "display"
+        case 4: return "keyboard"
+        case 5: return "speaker.wave.2"
+        case 6: return "wifi"
+        case 7: return "rectangle.on.rectangle"
+        case 8: return "switch.2"
+        default: return "gearshape"
+        }
     }
 }

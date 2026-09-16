@@ -21,15 +21,17 @@ BOOL IceNativeMenuBarAvailable(void) {
            [assertionClass instancesRespondToSelector:NSSelectorFromString(@"invalidate")];
 }
 
-id IceActivateMenuBarAssertion(NSArray<NSString *> *allowedBundles, void (^completion)(NSError *)) {
+id IceActivateMenuBarAssertion(NSArray<NSString *> *allowedBundles, NSArray<NSNumber *> *allowedSystemItems,
+                              void (^completion)(NSError *)) {
     if (!IceNativeMenuBarAvailable()) { return nil; }
     @try {
-        // Preserve all nine known system items, including input, clock and Control Center.
-        NSArray *systemItems = @[@0, @1, @2, @3, @4, @5, @6, @7, @8];
+        // Keep the clock and Control Center regardless of persisted input.
+        NSMutableSet *systemItems = [NSMutableSet setWithArray:allowedSystemItems];
+        [systemItems addObjectsFromArray:@[@2, @8]];
         id (*initialize)(id, SEL, NSArray *, NSArray *) = (void *)objc_msgSend;
         id configuration = initialize([configurationClass alloc],
             NSSelectorFromString(@"initWithAllowedSystemItems:allowedBundleIdentifiers:"),
-            systemItems, allowedBundles);
+            systemItems.allObjects, allowedBundles);
         id assertion = [[assertionClass alloc] init];
         if (!configuration || !assertion) { return nil; }
         void (*activate)(id, SEL, id, void (^)(NSError *)) = (void *)objc_msgSend;

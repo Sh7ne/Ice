@@ -22,9 +22,12 @@ xcrun clang -fobjc-arc -fmodules -c "$ROOT_DIR/Ice/MenuBar/Native/NativeMenuBarB
 xcrun swiftc -parse-as-library \
     -import-objc-header "$ROOT_DIR/Ice/MenuBar/Native/NativeMenuBarBridge.h" \
     "$ROOT_DIR/Ice/MenuBar/Native/NativeMenuBarSnapshot.swift" \
+    "$ROOT_DIR/Ice/MenuBar/Native/NativeMenuBarPolicy.swift" \
     "$ROOT_DIR/Tests/NativeMenuBar/SmokeTest.swift" "$TEST_DIR/bridge.o" \
     -o "$TEST_DIR/SmokeTest"
-"$FIXTURE/Contents/MacOS/Fixture" &
-fixture_pid=$!
+if [[ -z "${ICE_NATIVE_SMOKE_TARGET:-}" ]]; then
+    "$FIXTURE/Contents/MacOS/Fixture" &
+    fixture_pid=$!
+fi
 sleep 2
 /usr/bin/perl -e 'alarm shift; exec @ARGV' 30 "$TEST_DIR/SmokeTest"

@@ -56,6 +56,7 @@ struct MenuBarAppearanceEditor: View {
         IceForm {
             if
                 case .settings = location,
+                !NativeMenuBarManager.isRequired,
                 appState.settings.advanced.enableSecondaryContextMenu
             {
                 CalloutBox(

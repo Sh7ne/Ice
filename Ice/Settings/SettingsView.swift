@@ -82,10 +82,11 @@ struct SettingsView: View {
             }
             .collapsible(false)
         }
-        .scrollDisabled(true)
         .toolbar(removing: .sidebarToggle)
         .toolbar {
-            sidebarToolbarSpacer
+            if !NativeMenuBarManager.isRequired {
+                sidebarToolbarSpacer
+            }
         }
         .navigationSplitViewColumnWidth(sidebarWidth)
     }
@@ -121,6 +122,7 @@ struct SettingsView: View {
         if #available(macOS 26.0, *) {
             settingsPane
                 .scrollEdgeEffectStyle(.hard, for: .top)
+                .id(navigationState.settingsNavigationIdentifier)
         } else {
             settingsPane
         }

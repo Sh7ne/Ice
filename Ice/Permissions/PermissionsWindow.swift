@@ -18,7 +18,7 @@ struct PermissionsWindow: Scene {
                     window.standardWindowButton(.closeButton)?.isHidden = true
                     window.standardWindowButton(.miniaturizeButton)?.isHidden = true
                     window.standardWindowButton(.zoomButton)?.isHidden = true
-                    if let contentView = window.contentView {
+                    if let contentView = window.contentView, !NativeMenuBarManager.isRequired {
                         withMutableCopy(of: contentView.safeAreaInsets) { insets in
                             insets.bottom = -insets.bottom
                             insets.left = -insets.left

@@ -94,7 +94,10 @@ extension EdgeInsets {
     /// The default padding for an ``IceForm``.
     static let iceFormDefaultPadding: EdgeInsets = {
         var insets = EdgeInsets(all: 20)
-        if #available(macOS 26.0, *) {
+        if #available(macOS 27.0, *) {
+            // Keep the first row clear of the unified title bar and scroll edge.
+            insets.top = 20
+        } else if #available(macOS 26.0, *) {
             insets.top = 0
         }
         return insets

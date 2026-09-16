@@ -9,6 +9,12 @@ window/divider backend remains in use on macOS 14 through 26.
   accepting the warning. Disabling it immediately restores the system bar.
 - Visibility is per application, not per individual icon. Assign apps to
   Visible, Hidden, or Always-Hidden in the layout settings.
+- Preview 2 separates Apps and System Items. Time Machine and other legacy
+  SystemUIServer extras share one visibility setting, identified by their
+  live Accessibility titles when available. Battery, Bluetooth, Displays,
+  Input Menu, Sound, Wi-Fi, and Screen Mirroring use the system allowlist.
+  Clock, Control Center, and unknown controls remain system-managed rather
+  than being silently omitted or offered nonfunctional hiding controls.
 - Clicking Ice toggles Hidden; Option-click toggles Always-Hidden when enabled.
   Existing section hotkeys and automatic rehide settings remain available.
 - On first use, apps left of Ice's main-display icon are assigned to Hidden
@@ -48,6 +54,20 @@ registered apps and allowlisted system controls remain, and verifies restoration
 of every baseline item. The private API's system side effects apply during the
 brief conceal phases. Do not run during a call, recording, or presentation.
 This test does not claim that Notification Center remains clickable while hidden.
+
+Quit Ice and other menu bar managers before live tests: concurrent assessment
+assertions can interfere with the allowlist. To test an already-present system
+item rather than launching the temporary fixture:
+
+```sh
+ICE_NATIVE_SMOKE_TARGET=com.apple.systemuiserver TMPDIR=/private/tmp ./Scripts/smoke-test-native-menu-bar.sh
+ICE_NATIVE_SMOKE_TARGET=system:com.apple.menuextra.sound TMPDIR=/private/tmp ./Scripts/smoke-test-native-menu-bar.sh
+```
+
+Preview 2 also restores top content padding beneath the macOS 27 title bar,
+removes the empty sidebar toolbar group, resets scroll position between panes,
+keeps the sidebar scrollable, and uses a compact About layout. The permission
+window no longer cancels the system's safe-area insets on macOS 27.
 
 ## References and licensing
 

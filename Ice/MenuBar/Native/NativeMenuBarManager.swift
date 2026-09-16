@@ -31,6 +31,7 @@ final class NativeMenuBarManager: ObservableObject {
     private var assertion: AnyObject?
     private var revision = 0
     private var lastAllowed: Set<String>?
+    private var lastAllowedSystemItems: Set<Int>?
     private var ready = false
 
     func performSetup(with appState: AppState) {
@@ -67,7 +68,7 @@ final class NativeMenuBarManager: ObservableObject {
     }
 
     func setSection(_ section: Int, for bundle: String) {
-        guard !bundle.hasPrefix("com.apple."), bundle != Bundle.main.bundleIdentifier else { return }
+        guard NativeMenuBarPolicy.isManageable(bundle, ownBundle: Bundle.main.bundleIdentifier ?? "com.jordanbaird.Ice") else { return }
         if section == 0 {
             sections.removeValue(forKey: bundle)
         } else if section == 1 || section == 2 {
@@ -93,7 +94,7 @@ final class NativeMenuBarManager: ObservableObject {
            let ownItem = snapshot.items.first(where: { $0.id == Bundle.main.bundleIdentifier }),
            ownItem.frame.minY >= -5, ownItem.frame.minY < 50 {
             sections = Dictionary(uniqueKeysWithValues: snapshot.items.compactMap { item in
-                guard !item.id.hasPrefix("com.apple."), item.id != ownItem.id,
+                guard !NativeMenuBarPolicy.isSystem(item.id), item.id != ownItem.id,
                       abs(item.frame.minY - ownItem.frame.minY) < 5,
                       item.frame.maxX <= ownItem.frame.minX else { return nil }
                 return (item.id, 1)
@@ -104,11 +105,12 @@ final class NativeMenuBarManager: ObservableObject {
         for item in snapshot.items { known[item.id] = item }
         // Retain hidden apps across snapshots and restarts, including apps not running.
         for bundle in sections.keys where known[bundle] == nil {
-            let name = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle)
-                .map { $0.deletingPathExtension().lastPathComponent } ?? bundle
+            let name = NativeMenuBarPolicy.isSystem(bundle) ? NativeMenuBarPolicy.fallbackName(for: bundle)
+                : NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle)
+                    .map { $0.deletingPathExtension().lastPathComponent } ?? bundle
             known[bundle] = .init(id: bundle, name: name, frame: .zero)
         }
-        items = known.values.filter { !$0.id.hasPrefix("com.apple.") && $0.id != Bundle.main.bundleIdentifier }
+        items = known.values.filter { $0.id != Bundle.main.bundleIdentifier }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         ready = true
         applyVisibility()
@@ -130,7 +132,11 @@ final class NativeMenuBarManager: ObservableObject {
             alwaysHidden: alwaysHidden,
             ownBundle: Bundle.main.bundleIdentifier ?? "com.jordanbaird.Ice"
         )
-        guard !excluded.isEmpty else {
+        let excludedSystemItems = NativeMenuBarPolicy.excludedSystemItems(
+            sections: sections, hidden: hidden, alwaysHidden: alwaysHidden
+        )
+        let allowedSystemItems = NativeMenuBarPolicy.allSystemItems.subtracting(excludedSystemItems)
+        guard !excluded.isEmpty || !excludedSystemItems.isEmpty else {
             restore()
             error = nil
             return
@@ -140,20 +146,22 @@ final class NativeMenuBarManager: ObservableObject {
             return
         }
         let bundles = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
-            .union(items.map(\.id)).union([Bundle.main.bundleIdentifier ?? "com.jordanbaird.Ice"])
+            .union(items.map(\.id).filter { !$0.hasPrefix(NativeMenuBarPolicy.systemPrefix) })
+            .union([Bundle.main.bundleIdentifier ?? "com.jordanbaird.Ice"])
         let allowed = bundles.subtracting(excluded)
-        guard allowed != lastAllowed else { return }
+        guard allowed != lastAllowed || allowedSystemItems != lastAllowedSystemItems else { return }
         restore()
         let currentRevision = revision
         lastAllowed = allowed
-        assertion = IceActivateMenuBarAssertion(allowed.sorted()) { [weak self] failure in
+        lastAllowedSystemItems = allowedSystemItems
+        assertion = IceActivateMenuBarAssertion(allowed.sorted(), allowedSystemItems.sorted().map { NSNumber(value: $0) }) { [weak self] failure in
             Task { @MainActor in
                 guard let self, self.revision == currentRevision else { return }
                 if let failure {
                     self.failOpen(failure.localizedDescription)
                 } else {
                     self.error = nil
-                    self.logger.info("Native hiding active for \(excluded.count) app(s)")
+                    self.logger.info("Native hiding active for \(excluded.count) app(s), \(excludedSystemItems.count) system control(s)")
                 }
             }
         } as AnyObject?
@@ -171,5 +179,6 @@ final class NativeMenuBarManager: ObservableObject {
         IceInvalidateMenuBarAssertion(assertion)
         assertion = nil
         lastAllowed = nil
+        lastAllowedSystemItems = nil
     }
 }
