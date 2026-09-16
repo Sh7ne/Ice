@@ -24,6 +24,14 @@ Ice is a powerful menu bar management tool. While its primary function is hiding
 
 ## Install
 
+### macOS 27 Preview
+
+The `macos-27-compatibility` branch includes opt-in, experimental app-based
+hiding. It is not feature-equivalent to the macOS 26 release: hiding can also
+affect system extras and the clock's Notification Center shortcut. Read the
+[compatibility notes](docs/MACOS-27.md) before enabling it. The feature checklist
+below describes the legacy macOS 14-26 backend.
+
 ### Manual Installation
 
 Download the DMG from the

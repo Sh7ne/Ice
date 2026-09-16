@@ -56,7 +56,7 @@ final class MenuBarSection {
 
     /// A Boolean value that indicates whether the Ice Bar should be used.
     private var useIceBar: Bool {
-        appState?.settings.general.useIceBar ?? false
+        !NativeMenuBarManager.isRequired && (appState?.settings.general.useIceBar ?? false)
     }
 
     /// A weak reference to the menu bar manager.
@@ -105,6 +105,9 @@ final class MenuBarSection {
 
     /// A Boolean value that indicates whether the section is enabled.
     var isEnabled: Bool {
+        if NativeMenuBarManager.isRequired {
+            return name != .alwaysHidden || (appState?.settings.advanced.enableAlwaysHiddenSection ?? false)
+        }
         if case .visible = name {
             // The visible section should always be enabled.
             return true
@@ -155,9 +158,8 @@ final class MenuBarSection {
             return
         }
 
-        guard controlItem.isAddedToMenuBar else {
+        guard NativeMenuBarManager.isRequired ? isEnabled : controlItem.isAddedToMenuBar else {
             // The section is disabled.
-            // TODO: Can we use isEnabled for this check?
             return
         }
 

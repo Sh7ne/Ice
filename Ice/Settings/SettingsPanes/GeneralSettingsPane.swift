@@ -41,17 +41,21 @@ struct GeneralSettingsPane: View {
             IceSection {
                 iceIconOptions
             }
-            IceSection {
-                iceBarOptions
-            }
-            IceSection {
-                showOptions
+            if !NativeMenuBarManager.isRequired {
+                IceSection {
+                    iceBarOptions
+                }
+                IceSection {
+                    showOptions
+                }
             }
             IceSection {
                 rehideOptions
             }
-            IceSection {
-                spacingOptions
+            if !NativeMenuBarManager.isRequired {
+                IceSection {
+                    spacingOptions
+                }
             }
         }
     }

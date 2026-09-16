@@ -27,14 +27,18 @@ struct AdvancedSettingsPane: View {
         IceForm {
             IceSection("Menu Bar Sections") {
                 enableAlwaysHiddenSection
-                showAllSectionsOnUserDrag
-                sectionDividerStyle
+                if !NativeMenuBarManager.isRequired {
+                    showAllSectionsOnUserDrag
+                    sectionDividerStyle
+                }
             }
-            IceSection("Other") {
-                hideApplicationMenus
-                enableSecondaryContextMenu
-                showOnHoverDelay
-                tempShowInterval
+            if !NativeMenuBarManager.isRequired {
+                IceSection("Other") {
+                    hideApplicationMenus
+                    enableSecondaryContextMenu
+                    showOnHoverDelay
+                    tempShowInterval
+                }
             }
             IceSection("Permissions") {
                 allPermissions

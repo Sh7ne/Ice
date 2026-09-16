@@ -14,7 +14,9 @@ struct MenuBarLayoutSettingsPane: View {
     }
 
     var body: some View {
-        if !ScreenCapture.cachedCheckPermissions() {
+        if NativeMenuBarManager.isRequired {
+            NativeMenuBarLayoutPane(manager: appState.nativeMenuBarManager)
+        } else if !ScreenCapture.cachedCheckPermissions() {
             missingScreenRecordingPermissions
         } else if appState.menuBarManager.isMenuBarHiddenBySystemUserDefaults {
             cannotArrange

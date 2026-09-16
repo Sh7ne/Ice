@@ -413,7 +413,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1123;
+				CURRENT_PROJECT_VERSION = 1124;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = AMHB5QVH4B;
@@ -430,10 +430,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "0.11.13-sh7ne.2";
+				MARKETING_VERSION = "0.11.13-sh7ne.3-preview.1";
 				PRODUCT_BUNDLE_IDENTIFIER = com.jordanbaird.Ice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = Ice/MenuBar/Native/NativeMenuBarBridge.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -447,7 +448,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1123;
+				CURRENT_PROJECT_VERSION = 1124;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = AMHB5QVH4B;
@@ -464,10 +465,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "0.11.13-sh7ne.2";
+				MARKETING_VERSION = "0.11.13-sh7ne.3-preview.1";
 				PRODUCT_BUNDLE_IDENTIFIER = com.jordanbaird.Ice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = Ice/MenuBar/Native/NativeMenuBarBridge.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -586,8 +588,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/buh/CompactSlider";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.1.5;
+				kind = exactVersion;
+				version = 2.1.0;
 			};
 		};
 		7127A9FB2C4881BC00D99DEF /* XCRemoteSwiftPackageReference "Ifrit" */ = {

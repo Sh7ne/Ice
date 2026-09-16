@@ -37,6 +37,8 @@ final class AppState: ObservableObject {
     /// Manager for menu bar items.
     let itemManager = MenuBarItemManager()
 
+    let nativeMenuBarManager = NativeMenuBarManager()
+
     /// Global cache for menu bar item images.
     let imageCache = MenuBarItemImageCache()
 
@@ -62,14 +64,18 @@ final class AppState: ObservableObject {
         settings.performSetup(with: self)
         menuBarManager.performSetup(with: self)
 
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !NativeMenuBarManager.isRequired {
             await MenuBarItemService.Connection.shared.start()
         }
 
         appearanceManager.performSetup(with: self)
         hidEventManager.performSetup(with: self)
-        await itemManager.performSetup(with: self)
-        imageCache.performSetup(with: self)
+        if NativeMenuBarManager.isRequired {
+            nativeMenuBarManager.performSetup(with: self)
+        } else {
+            await itemManager.performSetup(with: self)
+            imageCache.performSetup(with: self)
+        }
         userNotificationManager.performSetup(with: self)
 
         configureCancellables()
@@ -162,7 +168,7 @@ final class AppState: ObservableObject {
         .throttle(for: 0.1, scheduler: DispatchQueue.main, latest: true)
         .merge(with: Just(true).delay(for: 1, scheduler: DispatchQueue.main))
         .sink { [weak self] shouldUpdate in
-            guard let self, shouldUpdate else {
+            guard let self, shouldUpdate, !NativeMenuBarManager.isRequired else {
                 return
             }
             Task {

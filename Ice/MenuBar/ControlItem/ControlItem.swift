@@ -84,7 +84,9 @@ final class ControlItem {
 
                 button.target = controlItem
                 button.action = #selector(controlItem.performAction)
-                button.sendAction(on: [.leftMouseDown, .rightMouseUp])
+                button.sendAction(on: NativeMenuBarManager.isRequired
+                    ? [.leftMouseUp, .rightMouseUp]
+                    : [.leftMouseDown, .rightMouseUp])
             } else {
                 self.constraint = nil
             }
@@ -196,7 +198,7 @@ final class ControlItem {
                 else {
                     return
                 }
-                if isVisible {
+                if NativeMenuBarManager.isRequired ? section.isEnabled : isVisible {
                     hotkey.enable()
                 } else {
                     hotkey.disable()
@@ -321,6 +323,10 @@ final class ControlItem {
 
     /// Updates the appearance of the status item using the current hiding state.
     private func updateStatusItem() {
+        if NativeMenuBarManager.isRequired && isSectionDivider {
+            removeFromMenuBar()
+            return
+        }
         guard
             let appState,
             let button = statusItem.button
@@ -334,6 +340,7 @@ final class ControlItem {
 
         switch identifier {
         case .visible:
+            button.setAccessibilityLabel("Ice")
             updateStatusItemVisibility(true)
             button.appearsDisabled = false
 
@@ -425,6 +432,7 @@ final class ControlItem {
 
     /// Adds the control item to the menu bar.
     private func addToMenuBar() {
+        guard !NativeMenuBarManager.isRequired || !isSectionDivider else { return }
         guard !isAddedToMenuBar else {
             return
         }
@@ -447,14 +455,17 @@ final class ControlItem {
     /// Performs the control item's action.
     @objc private func performAction() {
         guard
-            let menuBarManager = appState?.menuBarManager,
-            let event = NSApp.currentEvent
+            let menuBarManager = appState?.menuBarManager
         else {
             return
         }
 
-        switch event.type {
-        case .leftMouseDown:
+        switch NSApp.currentEvent?.type {
+        case .rightMouseUp:
+            showMenu()
+        // MenuBarAgent forwards actions without a reliable local NSEvent;
+        // accessibility presses can also have no current mouse event.
+        case _ where NativeMenuBarManager.isRequired, .leftMouseDown:
             let modifierFlags = NSEvent.modifierFlags
 
             // Running this from a Task seems to improve the visual
@@ -481,8 +492,6 @@ final class ControlItem {
                     section.toggle()
                 }
             }
-        case .rightMouseUp:
-            showMenu()
         default:
             return
         }
@@ -519,9 +528,10 @@ final class ControlItem {
             searchItem.keyEquivalentModifierMask = keyCombination.modifiers.nsEventFlags
         }
         searchItem.target = self
-        menu.addItem(searchItem)
-
-        menu.addItem(.separator())
+        if !NativeMenuBarManager.isRequired {
+            menu.addItem(searchItem)
+            menu.addItem(.separator())
+        }
 
         // Add items to toggle the hidden and always-hidden sections.
         for name: MenuBarSection.Name in [.hidden, .alwaysHidden] {

@@ -161,6 +161,7 @@ final class MenuBarManager: ObservableObject {
                 //   * The active space is fullscreen.
                 //   * The settings window is visible.
                 guard
+                    !NativeMenuBarManager.isRequired,
                     appState.settings.advanced.hideApplicationMenus,
                     !appState.settings.general.useIceBar,
                     !isMenuBarHiddenBySystem,

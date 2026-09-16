@@ -37,10 +37,13 @@ enum HotkeyAction: String, Codable, CaseIterable {
                 appState.menuBarManager.showOnHoverAllowed = false
             }
         case .searchMenuBarItems:
+            guard !NativeMenuBarManager.isRequired else { return }
             appState.menuBarManager.searchPanel.toggle()
         case .enableIceBar:
+            guard !NativeMenuBarManager.isRequired else { return }
             appState.settings.general.useIceBar.toggle()
         case .toggleApplicationMenus:
+            guard !NativeMenuBarManager.isRequired else { return }
             appState.menuBarManager.toggleApplicationMenus()
         }
     }

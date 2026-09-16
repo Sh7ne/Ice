@@ -70,6 +70,12 @@ final class HIDEventManager: ObservableObject {
         guard let self, isEnabled, let appState, let screen = bestScreen(appState: appState) else {
             return event
         }
+        if NativeMenuBarManager.isRequired {
+            if event.type == .leftMouseDown {
+                handleSmartRehide(with: event, appState: appState, screen: screen)
+            }
+            return event
+        }
         switch event.type {
         case .leftMouseDown:
             handleShowOnClick(appState: appState, screen: screen)
@@ -130,7 +136,7 @@ final class HIDEventManager: ObservableObject {
     // MARK: All Monitors
 
     /// All monitors maintained by the manager.
-    private lazy var allMonitors: [any EventMonitorProtocol] = [
+    private lazy var allMonitors: [any EventMonitorProtocol] = NativeMenuBarManager.isRequired ? [mouseDownMonitor] : [
         mouseDownMonitor,
         mouseUpMonitor,
         mouseDraggedMonitor,
@@ -188,7 +194,7 @@ final class HIDEventManager: ObservableObject {
 
     /// Starts or stops the mouse-moved tap according to the current settings.
     private func updateMouseMovedTap() {
-        let shouldStart = isEnabled &&
+        let shouldStart = !NativeMenuBarManager.isRequired && isEnabled &&
             appState?.settings.general.showOnHover == true &&
             appState?.menuBarManager.showOnHoverAllowed == true
 
