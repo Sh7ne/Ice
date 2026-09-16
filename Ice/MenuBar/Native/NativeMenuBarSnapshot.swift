@@ -22,8 +22,9 @@ actor NativeMenuBarSnapshot {
     }
 
     func read() -> Snapshot? {
-        guard AXIsProcessTrusted(),
-              let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first
+        guard
+            AXIsProcessTrusted(),
+            let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first
         else { return nil }
         let root = AXUIElementCreateApplication(agent.processIdentifier)
         AXUIElementSetMessagingTimeout(root, 0.25)
@@ -37,8 +38,10 @@ actor NativeMenuBarSnapshot {
         ]
         for window in windows where attribute(window, kAXRoleAttribute) as? String == "AXWindow" {
             for group in children(window) {
-                guard let frameValue = attribute(group, "AXFrame"),
-                      CFGetTypeID(frameValue) == AXValueGetTypeID() else { continue }
+                guard
+                    let frameValue = attribute(group, "AXFrame"),
+                    CFGetTypeID(frameValue) == AXValueGetTypeID()
+                else { continue }
                 var frame = CGRect.zero
                 // The CF type ID was checked above; AXValue cannot use a conditional cast.
                 // swiftlint:disable:next force_cast
@@ -46,9 +49,11 @@ actor NativeMenuBarSnapshot {
                 for child in children(group) {
                     var pid: pid_t = 0
                     AXUIElementGetPid(child, &pid)
-                    if pid != agent.processIdentifier,
-                       let app = NSRunningApplication(processIdentifier: pid),
-                       let bundle = app.bundleIdentifier {
+                    if
+                        pid != agent.processIdentifier,
+                        let app = NSRunningApplication(processIdentifier: pid),
+                        let bundle = app.bundleIdentifier
+                    {
                         let name: String
                         if bundle == NativeMenuBarPolicy.systemHost {
                             name = systemHostName(pid: pid)
@@ -89,8 +94,10 @@ actor NativeMenuBarSnapshot {
     private func systemHostName(pid: pid_t) -> String {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 0.15)
-        guard let value = attribute(app, kAXExtrasMenuBarAttribute),
-              CFGetTypeID(value) == AXUIElementGetTypeID() else {
+        guard
+            let value = attribute(app, kAXExtrasMenuBarAttribute),
+            CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
             return NativeMenuBarPolicy.fallbackName(for: NativeMenuBarPolicy.systemHost)
         }
         // swiftlint:disable:next force_cast

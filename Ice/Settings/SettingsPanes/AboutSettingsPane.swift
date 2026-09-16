@@ -14,13 +14,17 @@ struct AboutSettingsPane: View {
     }
 
     private var githubURL: URL {
-        // swiftlint:disable:next force_unwrapping
-        URL(string: "https://github.com/Sh7ne/Ice")!
+        guard let url = URL(string: "https://github.com/Sh7ne/Ice") else {
+            preconditionFailure("Invalid GitHub URL")
+        }
+        return url
     }
 
     private var licenseURL: URL {
-        // swiftlint:disable:next force_unwrapping
-        URL(string: "https://github.com/Sh7ne/Ice/blob/HEAD/LICENSE")!
+        guard let url = URL(string: "https://github.com/Sh7ne/Ice/blob/HEAD/LICENSE") else {
+            preconditionFailure("Invalid license URL")
+        }
+        return url
     }
 
     var body: some View {

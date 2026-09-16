@@ -115,8 +115,10 @@ struct NativeMenuBarLayoutPane: View {
 
     @ViewBuilder
     private func itemIcon(_ item: NativeMenuBarSnapshot.Item) -> some View {
-        if !NativeMenuBarPolicy.isSystem(item.id),
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.id) {
+        if
+            !NativeMenuBarPolicy.isSystem(item.id),
+            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.id)
+        {
             Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable()
         } else {
             Image(systemName: systemSymbol(for: item.id))

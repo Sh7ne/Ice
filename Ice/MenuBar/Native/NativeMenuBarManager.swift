@@ -89,14 +89,18 @@ final class NativeMenuBarManager: ObservableObject {
         }
         // The old divider windows no longer exist. Only infer the ordinary
         // hidden group when the saved layout and main-display Ice icon agree.
-        if UserDefaults.standard.object(forKey: Self.sectionsKey) == nil,
-           UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position Ice.ControlItem.Hidden") != nil,
-           let ownItem = snapshot.items.first(where: { $0.id == Bundle.main.bundleIdentifier }),
-           ownItem.frame.minY >= -5, ownItem.frame.minY < 50 {
+        if
+            UserDefaults.standard.object(forKey: Self.sectionsKey) == nil,
+            UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position Ice.ControlItem.Hidden") != nil,
+            let ownItem = snapshot.items.first(where: { $0.id == Bundle.main.bundleIdentifier }),
+            ownItem.frame.minY >= -5, ownItem.frame.minY < 50
+        {
             sections = Dictionary(uniqueKeysWithValues: snapshot.items.compactMap { item in
-                guard !NativeMenuBarPolicy.isSystem(item.id), item.id != ownItem.id,
-                      abs(item.frame.minY - ownItem.frame.minY) < 5,
-                      item.frame.maxX <= ownItem.frame.minX else { return nil }
+                guard
+                    !NativeMenuBarPolicy.isSystem(item.id), item.id != ownItem.id,
+                    abs(item.frame.minY - ownItem.frame.minY) < 5,
+                    item.frame.maxX <= ownItem.frame.minX
+                else { return nil }
                 return (item.id, 1)
             })
             UserDefaults.standard.set(sections, forKey: Self.sectionsKey)
