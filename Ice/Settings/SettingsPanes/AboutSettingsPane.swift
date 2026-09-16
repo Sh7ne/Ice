@@ -15,12 +15,12 @@ struct AboutSettingsPane: View {
 
     private var githubURL: URL {
         // swiftlint:disable:next force_unwrapping
-        URL(string: "https://github.com/Sh7ne/Ice")!
+        URL(string: "https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager")!
     }
 
     private var licenseURL: URL {
         // swiftlint:disable:next force_unwrapping
-        URL(string: "https://github.com/Sh7ne/Ice/blob/HEAD/LICENSE")!
+        URL(string: "https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/blob/HEAD/LICENSE")!
     }
 
     var body: some View {

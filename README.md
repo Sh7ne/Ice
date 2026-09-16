@@ -9,10 +9,10 @@ Ice is an open-source macOS menu bar manager for hiding, showing, and organizing
 
 ![Banner](https://github.com/user-attachments/assets/4423085c-4e4b-4f3d-ad0f-90a217c03470)
 
-[![Download](https://img.shields.io/badge/download-latest-brightgreen?style=flat-square)](https://github.com/Sh7ne/Ice/releases/latest)
+[![Download](https://img.shields.io/badge/download-latest-brightgreen?style=flat-square)](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-macOS-blue?style=flat-square)
 ![Requirements](https://img.shields.io/badge/requirements-macOS%2014%2B-fa4e49?style=flat-square)
-[![License](https://img.shields.io/github/license/Sh7ne/Ice?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/github/license/Sh7ne/Ice-macOS-Menu-Bar-Manager?style=flat-square)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_me_a_coffee-sh7ne-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/sh7ne)
 
 > [!IMPORTANT]
@@ -22,23 +22,23 @@ Ice is an open-source macOS menu bar manager for hiding, showing, and organizing
 > and remain licensed under GPL-3.0.
 
 > [!NOTE]
-> Ice is currently in active development. Some features have not yet been implemented. Download the latest release [here](https://github.com/Sh7ne/Ice/releases/latest) and see the roadmap below for upcoming features.
+> Ice is currently in active development. Some features have not yet been implemented. Download the latest release [here](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/latest) and see the roadmap below for upcoming features.
 
 ## Install
 
 ### macOS 27 Preview
 
-The [macOS 27 preview release](https://github.com/Sh7ne/Ice/releases/tag/v0.11.13-sh7ne.3-preview.2)
+The [macOS 27 preview release](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/tag/v0.11.13-sh7ne.3-preview.2)
 and `macos-27-compatibility` branch include opt-in, experimental app-based
 hiding. It is not feature-equivalent to the macOS 26 release: hiding can also
 affect system extras and the clock's Notification Center shortcut. Read the
-[compatibility notes](https://github.com/Sh7ne/Ice/blob/macos-27-compatibility/docs/MACOS-27.md) before enabling it. The feature checklist
+[compatibility notes](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/blob/macos-27-compatibility/docs/MACOS-27.md) before enabling it. The feature checklist
 below describes the legacy macOS 14-26 backend.
 
 ### Manual Installation
 
 Download the DMG from the
-[latest release](https://github.com/Sh7ne/Ice/releases/latest), open it, and drag
+[latest release](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/latest), open it, and drag
 `Ice.app` into the `Applications` folder.
 
 Automated DMG builds are ad-hoc signed and are not notarized by Apple. macOS may

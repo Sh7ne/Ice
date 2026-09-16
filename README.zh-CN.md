@@ -9,34 +9,34 @@ Ice 是一款开源 macOS 菜单栏管理工具，用于隐藏、显示和整理
 
 ![功能预览](https://github.com/user-attachments/assets/4423085c-4e4b-4f3d-ad0f-90a217c03470)
 
-[![下载](https://img.shields.io/badge/download-latest-brightgreen?style=flat-square)](https://github.com/Sh7ne/Ice/releases/latest)
+[![下载](https://img.shields.io/badge/download-latest-brightgreen?style=flat-square)](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/latest)
 ![平台](https://img.shields.io/badge/platform-macOS-blue?style=flat-square)
 ![系统要求](https://img.shields.io/badge/requirements-macOS%2014%2B-fa4e49?style=flat-square)
-[![许可证](https://img.shields.io/github/license/Sh7ne/Ice?style=flat-square)](LICENSE)
+[![许可证](https://img.shields.io/github/license/Sh7ne/Ice-macOS-Menu-Bar-Manager?style=flat-square)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_me_a_coffee-sh7ne-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/sh7ne)
 
 > [!IMPORTANT]
 > 本仓库是 [jordanbaird/Ice](https://github.com/jordanbaird/Ice) 的修改分支，由 [Sh7ne](https://github.com/Sh7ne) 维护。分支专属修改始于 2026 年 8 月，继续遵循 GPL-3.0 许可证。上游版权和许可证声明予以保留。
 
 > [!NOTE]
-> Ice 仍在持续开发中，部分计划功能尚未实现。macOS 14-26 用户可下载[最新正式版](https://github.com/Sh7ne/Ice/releases/latest)；macOS 27 用户请使用下方的兼容性预览版，不要将正式版下载入口当作预览版入口。
+> Ice 仍在持续开发中，部分计划功能尚未实现。macOS 14-26 用户可下载[最新正式版](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/latest)；macOS 27 用户请使用下方的兼容性预览版，不要将正式版下载入口当作预览版入口。
 
 ## 安装
 
 ### macOS 27 预览版
 
-[下载 macOS 27 兼容性预览版](https://github.com/Sh7ne/Ice/releases/tag/v0.11.13-sh7ne.3-preview.2)。对应源码位于 `macos-27-compatibility` 分支。
+[下载 macOS 27 兼容性预览版](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/tag/v0.11.13-sh7ne.3-preview.2)。对应源码位于 `macos-27-compatibility` 分支。
 
 在设置的菜单栏布局页面启用 **Experimental app hiding** 后，可以按应用隐藏或展开图标，并为支持的系统菜单栏项目设置可见性。Time Machine 与 Siri 等由同一系统进程托管的项目共用一项设置，不能分别隐藏。
 
 > [!WARNING]
 > 这是实验功能，不等同于 macOS 26 版本的完整功能。隐藏期间，部分额外的系统图标也可能消失，点击时钟打开通知中心会受到影响。展开全部分区、关闭实验性隐藏或退出 Ice 后可恢复。Ice Bar、拖拽分区及部分旧版展开方式暂不可用。
 
-启用前请阅读[完整兼容性说明（英文）](https://github.com/Sh7ne/Ice/blob/macos-27-compatibility/docs/MACOS-27.md)。下方功能清单与截图描述的是 macOS 14-26 的旧版实现。
+启用前请阅读[完整兼容性说明（英文）](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/blob/macos-27-compatibility/docs/MACOS-27.md)。下方功能清单与截图描述的是 macOS 14-26 的旧版实现。
 
 ### 手动安装
 
-从[最新正式版](https://github.com/Sh7ne/Ice/releases/latest)或上方预览版页面下载 DMG，打开后将 `Ice.app` 拖入 `Applications`（应用程序）文件夹。
+从[最新正式版](https://github.com/Sh7ne/Ice-macOS-Menu-Bar-Manager/releases/latest)或上方预览版页面下载 DMG，打开后将 `Ice.app` 拖入 `Applications`（应用程序）文件夹。
 
 自动生成的 DMG 使用 ad-hoc 签名，未经 Apple 公证。安装或更新后，macOS 可能要求在“系统设置 > 隐私与安全性”中明确允许打开；更新后也可能需要重新授予隐私权限。
 
